@@ -7,7 +7,7 @@ IsBuildDebug=1
 IsBuildEnabled=1
 IsTestsEnabled=1
 
-PROJECT_NAME=boilerplate-sdl3
+PROJECT_NAME=game
 OUTPUT_NAME=$PROJECT_NAME
 
 usage() {
@@ -52,7 +52,7 @@ for i in "$@"; do
     --build-directory=*)
       OutputDir="${i#*=}"
       ;;
-    --disable-handmadehero)
+    --disable-$PROJECT_NAME)
       IsBuildEnabled=0
       ;;
     test|tests)
