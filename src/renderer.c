@@ -1,5 +1,4 @@
 #include "renderer.h"
-#include "SDL3/SDL.h"
 
 void
 GameRendererInit(game_renderer *gameRenderer, s32 windowWidth, s32 windowHeight)

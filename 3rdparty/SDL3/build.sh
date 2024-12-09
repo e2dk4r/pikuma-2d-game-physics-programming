@@ -28,7 +28,7 @@ LIBSDL_HASH_OK=$(HashCheckB2 "$LIBSDL_FILE" "$LIBSDL_HASH_B2")
 if [ $LIBSDL_HASH_OK -eq 0 ]; then
   StartTimer
   echo Downloading SDL $LIBSDL_VERSION archive
-  curl --location --output "$LIBSDL_FILE" "$LIBSDL_URL"
+  Download "$LIBSDL_URL" "$LIBSDL_FILE"
   elapsed=$(StopTimer)
   Log "  downloaded in $elapsed seconds"
 
@@ -55,8 +55,21 @@ fi
 # BUILD
 ################################################################
 if [ ! -e "$LIBSDL_DIR-install/lib64/libSDL${LIBSDL_VERSION%%.*}.so" ]; then
-  cmake -G Ninja -S "$LIBSDL_DIR" -B "$LIBSDL_DIR/build" -D CMAKE_INSTALL_PREFIX="$LIBSDL_DIR-install" -D CMAKE_BUILD_TYPE=Release
-  StartTimer
+  cmake -G Ninja -S "$LIBSDL_DIR" -B "$LIBSDL_DIR/build" -D CMAKE_INSTALL_PREFIX="$LIBSDL_DIR-install" -D CMAKE_BUILD_TYPE=Release \
+    -D SDL_DUMMYAUDIO=OFF \
+    -D SDL_DUMMYVIDEO=OFF \
+    -D SDL_IBUS=OFF \
+    -D SDL_PIPEWIRE=ON \
+    -D SDL_PULSEAUDIO=OFF \
+    -D SDL_RPATH=OFF \
+    -D SDL_X11=OFF \
+    -D SDL_WAYLAND=ON \
+    -D SDL_KMSDRM=OFF \
+    -D SDL_OFFSCREEN=OFF \
+    -D SDL_TEST_LIBRARY=OFF \
+    -D SDL_SHARED=ON \
+    -D SDL_STATIC=OFF
+
   ninja -C "$LIBSDL_DIR/build" install -j8
   elapsed=$(StopTimer)
   Log "- built in $elapsed seconds"
