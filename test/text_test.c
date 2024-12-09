@@ -54,6 +54,7 @@ enum text_test_error {
   TEXT_TEST_ERROR_FORMATHEX_EXPECTED_0x00,
   TEXT_TEST_ERROR_FORMATHEX_EXPECTED_0x04,
   TEXT_TEST_ERROR_FORMATHEX_EXPECTED_0X00F2AA499B9028EA,
+  TEXT_TEST_ERROR_PATHGETDIRECTORY_1,
 
   // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
   // For the default exitcode testing protocol, the GNU standard approach in
@@ -519,6 +520,19 @@ main(void)
     expected = STRING_FROM_ZERO_TERMINATED("0x00f2aa499b9028ea");
     if (!IsStringEqual(&value, &expected)) {
       errorCode = TEXT_TEST_ERROR_FORMATHEX_EXPECTED_0X00F2AA499B9028EA;
+      goto end;
+    }
+  }
+
+  // PathGetDirectory(struct string *path)
+  {
+    struct string expected;
+    struct string value;
+
+    value = PathGetDirectory(&STRING_FROM_ZERO_TERMINATED("/usr/bin/ls"));
+    expected = STRING_FROM_ZERO_TERMINATED("/usr/bin");
+    if (!IsStringEqual(&value, &expected)) {
+      errorCode = TEXT_TEST_ERROR_PATHGETDIRECTORY_1;
       goto end;
     }
   }

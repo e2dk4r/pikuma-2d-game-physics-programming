@@ -456,3 +456,28 @@ FormatHex(struct string *stringBuffer, u64 value)
   result.length = index;
   return result;
 }
+
+static inline struct string
+PathGetDirectory(struct string *path)
+{
+  struct string directory = {};
+
+  if (!path || !path->value || path->length == 0)
+    return directory;
+
+  u64 lastSlashIndex = path->length;
+  for (u64 index = path->length - 1; index != 0; index--) {
+    if (path->value[index] == '/') {
+      lastSlashIndex = index;
+      break;
+    }
+  }
+
+  // if slash not found
+  if (lastSlashIndex == path->length || lastSlashIndex == path->length - 1)
+    return directory;
+
+  directory.value = path->value;
+  directory.length = lastSlashIndex;
+  return directory;
+}
