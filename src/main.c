@@ -34,6 +34,8 @@ typedef struct {
 #endif
 } sdl_state;
 
+#if IS_BUILD_DEBUG
+
 static void
 GameLibraryReload(game_library *lib, sdl_state *state)
 {
@@ -75,6 +77,8 @@ GameLibraryReload(game_library *lib, sdl_state *state)
 
   lib->loadedAt = libCreatedAt;
 }
+
+#endif
 
 SDL_AppResult
 SDL_AppIterate(void *appstate)
