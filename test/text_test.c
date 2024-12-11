@@ -537,6 +537,52 @@ main(void)
     }
   }
 
+  // xxx
+  {
+    struct string numbers = STRING_FROM_ZERO_TERMINATED("1 2 3");
+
+    {
+      u64 expected = 3;
+      u64 value = 1;
+      StringSplit(&numbers, &value, 0);
+      if (value != expected) {
+        errorCode = TEXT_TEST_ERROR_PATHGETDIRECTORY_1;
+        goto end;
+      }
+    }
+
+    {
+      u64 splitCount = 3;
+      string splits[3];
+      StringSplit(&numbers, &splitCount, splits);
+
+      string *expected;
+      string *value;
+      u64 splitIndex = 0;
+
+      expected = &STRING_FROM_ZERO_TERMINATED("1");
+      value = splits + splitIndex++;
+      if (!IsStringEqual(value, expected)) {
+        errorCode = TEXT_TEST_ERROR_PATHGETDIRECTORY_1;
+        goto end;
+      }
+
+      expected = &STRING_FROM_ZERO_TERMINATED("2");
+      value = splits + splitIndex++;
+      if (!IsStringEqual(value, expected)) {
+        errorCode = TEXT_TEST_ERROR_PATHGETDIRECTORY_1;
+        goto end;
+      }
+
+      expected = &STRING_FROM_ZERO_TERMINATED("3");
+      value = splits + splitIndex++;
+      if (!IsStringEqual(value, expected)) {
+        errorCode = TEXT_TEST_ERROR_PATHGETDIRECTORY_1;
+        goto end;
+      }
+    }
+  }
+
 end:
   return (int)errorCode;
 }

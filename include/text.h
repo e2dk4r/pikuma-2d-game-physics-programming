@@ -481,3 +481,63 @@ PathGetDirectory(struct string *path)
   directory.length = lastSlashIndex;
   return directory;
 }
+
+/*
+ * Splits string into multiple strings.
+ * When splits array is empty, number of parts string can be split returned in splitCount.
+ * @param string string to be split
+ * @param splitCount how many different parts are in string. [1,∞]
+ * @param splits pointer to array of strings.
+ * @return 1 when string can be split into parts, 0 otherwise.
+ * @code
+ *   u64 splitCount;
+ *   if (!StringSplit(string, &splitCount, 0));
+ *   if (splitCount == 1)
+ *     return;
+ *   string *splits = MemoryArenaPush(arena, sizeof(*splits) * splitCount);
+ *   StringSplit(string, &splitCount, splits);
+ * @endcode
+ */
+static inline b8
+StringSplit(struct string *string, u64 *splitCount, struct string *splits)
+{
+  debug_assert(splitCount && "only split can be null");
+  u8 delimiter = ' ';
+
+  if (!string || !splitCount)
+    return 0;
+
+  if (splits == 0) {
+    u64 count = 0;
+    for (u64 index = 0; index < string->length; index++) {
+      if (string->value[index] == delimiter)
+        count++;
+    }
+
+    *splitCount = count + 1;
+  } else {
+    u64 startIndex = 0;
+    u64 splitIndex = 0;
+    u64 splitMax = *splitCount;
+
+    for (u64 index = 0; index < string->length; index++) {
+      if (string->value[index] == delimiter) {
+        struct string *split = splits + splitIndex;
+        if (splitMax == splitIndex + 1 /* index to count */)
+          break;
+        split->value = string->value + startIndex;
+        split->length = index - startIndex;
+        startIndex = index + 1;
+        splitIndex++;
+      }
+    }
+
+    // last one
+    struct string *split = splits + splitIndex;
+    split->value = string->value + startIndex;
+    split->length = string->length - startIndex;
+    debug_assert(splitIndex < splitMax);
+  }
+
+  return 1;
+}
