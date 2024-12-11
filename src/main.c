@@ -38,12 +38,13 @@ static void
 GameLibraryReload(game_library *lib, sdl_state *state)
 {
   // create absolute path, instead of relative
-  // string_builder *sb = &state->sb;
-  // string pwd = PathGetDirectory(&state->executablePath);
-  // StringBuilderAppendString(sb, &pwd);
-  // StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("/game.so"));
-  // string libPath = StringBuilderFlush(sb);
-  string libPath = STRING_FROM_ZERO_TERMINATED("game.so");
+  string_builder *sb = &state->sb;
+  string pwd = PathGetDirectory(&state->executablePath);
+  debug_assert(pwd.length > 0);
+  StringBuilderAppendString(sb, &pwd);
+  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("/")); // seperator
+  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("game.so"));
+  string libPath = StringBuilderFlush(sb);
 
   // get create time
   SDL_PathInfo libPathInfo;
