@@ -55,7 +55,8 @@ fi
 # BUILD
 ################################################################
 if [ ! -e "$LIBSDL_DIR-install/lib64/libSDL${LIBSDL_VERSION%%.*}.so" ]; then
-  cmake -G Ninja -S "$LIBSDL_DIR" -B "$LIBSDL_DIR/build" -D CMAKE_INSTALL_PREFIX="$LIBSDL_DIR-install" -D CMAKE_BUILD_TYPE=Release \
+  cmake -G Ninja -S "$LIBSDL_DIR" -B "$LIBSDL_DIR/build" -D CMAKE_INSTALL_PREFIX="$LIBSDL_DIR-install" \
+    -D CMAKE_BUILD_TYPE=Release \
     -D SDL_DUMMYAUDIO=OFF \
     -D SDL_DUMMYVIDEO=OFF \
     -D SDL_IBUS=OFF \
@@ -73,10 +74,6 @@ if [ ! -e "$LIBSDL_DIR-install/lib64/libSDL${LIBSDL_VERSION%%.*}.so" ]; then
   ninja -C "$LIBSDL_DIR/build" install -j8
   elapsed=$(StopTimer)
   Log "- built in $elapsed seconds"
-fi
-
-if [ ! -e "$OutputDir/libSDL${LIBSDL_VERSION%%.*}.so" ]; then
-  cp "$LIBSDL_DIR-install/lib64/libSDL${LIBSDL_VERSION%%.*}.so.0" "$OutputDir/libSDL${LIBSDL_VERSION%%.*}.so.0" 
 fi
 
 export INC_LIBSDL="-I$LIBSDL_DIR-install/include"

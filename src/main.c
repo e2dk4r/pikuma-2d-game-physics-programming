@@ -1,13 +1,24 @@
 #include "compiler.h"
-#include "game.c"
 #include "game.h"
 #include "renderer.c"
-#include "renderer.h"
 #include "type.h"
+#include <unistd.h> // write()
+
+#if !IS_BUILD_DEBUG
+#include "game.c"
+#endif
 
 #define SDL_MAIN_USE_CALLBACKS 1 /* use the callbacks instead of main() */
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_loadso.h>
 #include <SDL3/SDL_main.h>
+
+typedef struct {
+  u64 loadedAt;
+  SDL_SharedObject *handle;
+
+  pfnGameUpdateAndRender GameUpdateAndRender;
+} game_library;
 
 typedef struct {
   SDL_Window *window;
@@ -16,32 +27,78 @@ typedef struct {
   u32 inputIndex : 1;
   game_renderer renderer;
   u64 lastTime;
-#if IS_BUILD_DEBUG
   string_builder sb;
+#if IS_BUILD_DEBUG
+  string executablePath;
+  game_library lib;
 #endif
 } sdl_state;
+
+static void
+GameLibraryReload(game_library *lib, sdl_state *state)
+{
+  // create absolute path, instead of relative
+  // string_builder *sb = &state->sb;
+  // string pwd = PathGetDirectory(&state->executablePath);
+  // StringBuilderAppendString(sb, &pwd);
+  // StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("/game.so"));
+  // string libPath = StringBuilderFlush(sb);
+  string libPath = STRING_FROM_ZERO_TERMINATED("game.so");
+
+  // get create time
+  SDL_PathInfo libPathInfo;
+  b8 isFileExists = SDL_GetPathInfo((const char *)libPath.value, &libPathInfo);
+  runtime_assert(isFileExists);
+  u64 libCreatedAt = (u64)libPathInfo.create_time;
+
+  if (lib->loadedAt == libCreatedAt) {
+    return;
+  }
+
+  // close already open library
+  if (lib->handle) {
+    SDL_UnloadObject(lib->handle);
+    lib->handle = 0;
+  }
+
+  lib->handle = SDL_LoadObject((const char *)libPath.value);
+  debug_assert(lib->handle);
+
+  lib->GameUpdateAndRender = (pfnGameUpdateAndRender)SDL_LoadFunction(lib->handle, "GameUpdateAndRender");
+  debug_assert(lib->GameUpdateAndRender && "library malformed");
+
+  {
+    string *message = &STRING_FROM_ZERO_TERMINATED("Reloaded library!\n");
+    write(STDOUT_FILENO, message->value, message->length);
+  }
+
+  lib->loadedAt = libCreatedAt;
+}
 
 SDL_AppResult
 SDL_AppIterate(void *appstate)
 {
   sdl_state *state = appstate;
 
-  u64 now_ns = SDL_GetTicksNS();
-  debug_assert(now_ns > 0);
-  u64 elapsed_ns = now_ns - state->lastTime;
-  // if (elapsed_ns <= 16000000) {
-  //   return SDL_APP_CONTINUE;
-  // }
+  u64 nowInNanoseconds = SDL_GetTicksNS();
+  debug_assert(nowInNanoseconds > 0);
+  u64 elapsedInNanoseconds = nowInNanoseconds - state->lastTime;
 
   state->inputIndex = state->inputIndex++ % ARRAY_SIZE(state->inputs);
   game_input *newInput = state->inputs + state->inputIndex;
-  newInput->dt = (f32)elapsed_ns * 1e-9f;
+  newInput->dt = (f32)elapsedInNanoseconds * 1e-9f;
 
   game_memory *memory = &state->memory;
   game_renderer *renderer = &state->renderer;
+#if IS_BUILD_DEBUG
+  GameLibraryReload(&state->lib, state);
+  pfnGameUpdateAndRender GameUpdateAndRender = state->lib.GameUpdateAndRender;
+  debug_assert(GameUpdateAndRender);
+#endif
+
   GameUpdateAndRender(memory, newInput, renderer);
 
-  state->lastTime = now_ns;
+  state->lastTime = nowInNanoseconds;
 
   return SDL_APP_CONTINUE;
 }
@@ -177,7 +234,6 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     }
   } break;
 
-  // case SDL_EVENT_JOYSTICK_AXIS_MOTION:
   case SDL_EVENT_GAMEPAD_AXIS_MOTION: {
     SDL_GamepadAxisEvent axisEvent = event->gaxis;
 
@@ -248,11 +304,11 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
   // setup memory
   memory_arena memory = {};
   {
+    u64 KILOBYTES = 1 << 10;
     u64 MEGABYTES = 1 << 20;
-    memory.total = 64 * MEGABYTES + sizeof(sdl_state);
-#if IS_BUILD_DEBUG
-    memory.total += 1 * MEGABYTES;
-#endif
+    memory.total = 64 * MEGABYTES;
+    memory.total += sizeof(sdl_state); // for app state tracking
+    memory.total += 1 * KILOBYTES;     // for string builder
     memory.block = SDL_malloc(memory.total);
     if (memory.block == 0) {
       return SDL_APP_FAILURE;
@@ -262,29 +318,36 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
   // setup game state
   sdl_state *state = MemoryArenaPush(&memory, sizeof(*state), 4);
   memset(state, 0, sizeof(*state));
-#if IS_BUILD_DEBUG
-  {
-    u64 MEGABYTES = 1 << 20;
-    memory_arena sbMemory = MemoryArenaSub(&memory, 1 * MEGABYTES);
-    string *outBuffer = MemoryArenaPush(&sbMemory, sizeof(*outBuffer), 4);
-    *outBuffer = MemoryArenaPushString(&sbMemory, 256);
+
+  { // - string builder
+    u64 KILOBYTES = 1 << 10;
+    memory_arena sbMemory = MemoryArenaSub(&memory, 1 * KILOBYTES);
     string *stringBuffer = MemoryArenaPush(&sbMemory, sizeof(*stringBuffer), 4);
     *stringBuffer = MemoryArenaPushString(&sbMemory, 32);
+    string *outBuffer = MemoryArenaPush(&sbMemory, sizeof(*outBuffer), 4);
+    *outBuffer = MemoryArenaPushString(&sbMemory, sbMemory.total - sbMemory.used);
 
     string_builder *sb = &state->sb;
     sb->outBuffer = outBuffer;
     sb->stringBuffer = stringBuffer;
   }
+
+#if IS_BUILD_DEBUG
+  state->executablePath = StringFromZeroTerminated((u8 *)argv[0], 1024);
+  GameLibraryReload(&state->lib, state);
 #endif
   {
     u64 MEGABYTES = 1 << 20;
     game_memory *gameMemory = &state->memory;
     gameMemory->permanentStorageSize = 8 * MEGABYTES;
-    gameMemory->permanentStorage = MemoryArenaPushUnaligned(&memory, gameMemory->permanentStorageSize);
+    gameMemory->permanentStorage = MemoryArenaPush(&memory, gameMemory->permanentStorageSize, 4);
     memset(gameMemory->permanentStorage, 0, gameMemory->permanentStorageSize);
 
     gameMemory->transientStorageSize = 56 * MEGABYTES;
-    gameMemory->transientStorage = MemoryArenaPushUnaligned(&memory, gameMemory->transientStorageSize);
+    gameMemory->transientStorage = MemoryArenaPush(&memory, gameMemory->transientStorageSize, 4);
+
+    transient_state *transientState = gameMemory->transientStorage;
+    transientState->sb = &state->sb;
   }
   debug_assert(memory.used == memory.total && "Warning: you are not using specified memory amount");
   *appstate = state;
@@ -305,6 +368,8 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
   if (!SDL_SetRenderVSync(renderer->renderer, 1)) {
     return SDL_APP_FAILURE;
   }
+
+  SDL_HideCursor();
 
   // if (!SDL_SetRenderScale(renderer->renderer, (f32)windowWidth * PIXELS_PER_METER,
   //                         (f32)windowHeight * PIXELS_PER_METER)) {

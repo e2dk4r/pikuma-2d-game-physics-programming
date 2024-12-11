@@ -200,3 +200,10 @@ typedef struct {
     f32 e[4];
   };
 } v4;
+
+typedef struct {
+  v2 position;
+  v2 velocity;
+  v2 acceleration;
+  f32 mass;
+} particle;

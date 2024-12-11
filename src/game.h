@@ -40,8 +40,9 @@ typedef struct {
   f32 rt;
 } game_controller;
 
-static inline game_controller*
-GameControllerGetKeyboard(game_controller *controllers, u32 controllerCount) {
+static inline game_controller *
+GameControllerGetKeyboard(game_controller *controllers, u32 controllerCount)
+{
   debug_assert(controllerCount > 0);
   u32 index = 0;
   debug_assert(index < controllerCount);
@@ -49,8 +50,9 @@ GameControllerGetKeyboard(game_controller *controllers, u32 controllerCount) {
   return controller;
 }
 
-static inline game_controller*
-GameControllerGetGamepad(game_controller *controllers, u32 controllerCount, u32 index) {
+static inline game_controller *
+GameControllerGetGamepad(game_controller *controllers, u32 controllerCount, u32 index)
+{
   debug_assert(controllerCount > 0);
   index += 1; // 0 is reserved for keyboard
   debug_assert(index < controllerCount);
@@ -59,7 +61,7 @@ GameControllerGetGamepad(game_controller *controllers, u32 controllerCount, u32 
 }
 
 typedef struct {
-  f32 dt; // in seconds
+  f32 dt;                         // in seconds
   game_controller controllers[3]; // 1 keyboard + 2 controllers
 } game_input;
 
@@ -67,6 +69,8 @@ typedef struct {
   b8 isInitialized : 1;
 
   memory_arena worldArena;
+
+  particle particle;
 } game_state;
 
 typedef struct {
@@ -80,11 +84,9 @@ typedef struct {
 typedef struct {
   b8 isInitialized : 1;
   memory_arena transientArena;
-#if IS_BUILD_DEBUG
-  memory_arena sbArena;
-  string_builder sb;
-#endif
+  string_builder *sb;
 } transient_state;
 
+typedef void (*pfnGameUpdateAndRender)(game_memory *memory, game_input *input, game_renderer *renderer);
 void
 GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *renderer);

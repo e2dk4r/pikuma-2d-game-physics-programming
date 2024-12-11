@@ -306,6 +306,8 @@ cflags="$cflags -Wno-unused-function"
 cflags="$cflags -DCOMPILER_GCC=$IsCompilerGCC"
 cflags="$cflags -DCOMPILER_CLANG=$IsCompilerClang"
 
+cflags="$cflags -DIS_PLATFORM_LINUX=$IsOSLinux"
+
 cflags="$cflags -DIS_BUILD_DEBUG=$IsBuildDebug"
 if [ $IsBuildDebug -eq 1 ]; then
   cflags="$cflags -g -O0"
@@ -367,16 +369,36 @@ if [ $IsBuildEnabled -eq 1 ]; then
     # ShaderInc=
     #. $ProjectRoot/shader/build.sh
 
-    src=""
-    src="$src $ProjectRoot/src/main.c"
-    src="${src# }"
+    if [ $IsBuildDebug -eq 1 ]; then
+      src=""
+      src="$src $ProjectRoot/src/game.c"
+      src="$src $ProjectRoot/src/renderer.c"
+      src="${src# }"
 
+      output="$OutputDir/$OUTPUT_NAME.so"
+      inc="-I$ProjectRoot/include $INC_LIBSDL"
+      lib="$LIB_LIBSDL $LIB_M"
+      StartTimer
+      "$cc" --shared $cflags $ldflags $inc -o "$output" $src $lib
+      [ $? -eq 0 ] && echo "$OUTPUT_NAME.so compiled in $(StopTimer) seconds."
+    fi
+
+    src="$ProjectRoot/src/main.c"
     output="$OutputDir/$OUTPUT_NAME"
     inc="-I$ProjectRoot/include $INC_LIBSDL"
     lib="$LIB_LIBSDL $LIB_M"
     StartTimer
     "$cc" $cflags $ldflags $inc -o "$output" $src $lib
     [ $? -eq 0 ] && echo "$OUTPUT_NAME compiled in $(StopTimer) seconds."
+
+    cat <<EOF
+NOTE:
+  To run executable, do not forget to include SDL3 library to search
+    export 'LD_LIBRARY_PATH=$LIBSDL_DIR-install/lib64'
+
+  Do not set 'LD_LIBRARY_PATH=./', this causes strange errors.
+    e.g. Recieving segfault when recompiling. SIGSEGV or SIGBUS
+EOF
   fi
 fi
 
