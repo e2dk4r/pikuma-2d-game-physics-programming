@@ -22,7 +22,7 @@ Log "- tag:     $LIBSDL_TAG"
 Log "- version: $LIBSDL_VERSION"
 Log "- url:     $LIBSDL_URL"
 Log "- file:    $LIBSDL_FILE"
-Log "- b2sum:   $LIBSDL_HASH"
+Log "- b2sum:   $LIBSDL_HASH_B2"
 
 LIBSDL_HASH_OK=$(HashCheckB2 "$LIBSDL_FILE" "$LIBSDL_HASH_B2")
 if [ $LIBSDL_HASH_OK -eq 0 ]; then
