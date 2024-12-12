@@ -71,11 +71,20 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   particle *particle = &state->particle;
 #if (1 && IS_BUILD_DEBUG)
   {
-    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("particle { pos: "));
+    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("particle:"));
+    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  position:     "));
     StringBuilderAppendF32(sb, particle->position.x, 2);
     StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
     StringBuilderAppendF32(sb, particle->position.y, 2);
-    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("}\n"));
+    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  velocity:     "));
+    StringBuilderAppendF32(sb, particle->velocity.x, 2);
+    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+    StringBuilderAppendF32(sb, particle->velocity.y, 2);
+    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  acceleration: "));
+    StringBuilderAppendF32(sb, particle->acceleration.x, 2);
+    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+    StringBuilderAppendF32(sb, particle->acceleration.y, 2);
+    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
     string string = StringBuilderFlush(sb);
     write(STDOUT_FILENO, string.value, string.length);
   }
@@ -91,21 +100,30 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     }
   }
 
-  f32 speed = 5.0f;
-  // acceleration = f''(t) = a
-  // velocity     = ∫f''(t)
-  //              = f'(t) = at + v₀
-  // position     = ∫f'(t)
-  //              = f(t) = ½at² + vt + p₀
-  particle->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
-  particle->velocity = v2_add(particle->velocity, v2_scale(particle->acceleration, dt));
-  particle->position =
-      // ½at² + vt + p₀
-      v2_add(particle->position, v2_add(
-                                     // ½at²
-                                     v2_scale(particle->acceleration, 0.5f * Square(dt)),
-                                     // + vt
-                                     v2_scale(particle->velocity, dt)));
+  v2 sumOfForces = {0, 0};
+  v2 windForce = {2.0f, 0.0f};
+  sumOfForces = v2_add(sumOfForces, windForce);
+  {
+    // F = ma
+    // a = F/m
+    particle->acceleration = v2_scale(sumOfForces, 1.0f / particle->mass);
+
+    // acceleration = f''(t) = a
+    // particle->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
+
+    // velocity     = ∫f''(t)
+    //              = f'(t) = at + v₀
+    // position     = ∫f'(t)
+    //              = f(t) = ½at² + vt + p₀
+    particle->velocity = v2_add(particle->velocity, v2_scale(particle->acceleration, dt));
+    particle->position =
+        // ½at² + vt + p₀
+        v2_add(particle->position, v2_add(
+                                       // ½at²
+                                       v2_scale(particle->acceleration, 0.5f * Square(dt)),
+                                       // + vt
+                                       v2_scale(particle->velocity, dt)));
+  }
 
   // Is particle over 10m away from origin?
   if (v2_length_square(particle->position) > Square(10.0f)) {
