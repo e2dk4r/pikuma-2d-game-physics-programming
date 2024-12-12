@@ -21,4 +21,4 @@ void
 DrawLine(game_renderer *renderer, v2 from, v2 to, v4 color, f32 width);
 
 void
-DrawCircle(game_renderer *renderer, v2 position, f32 radius, v4 color, f32 width);
+DrawCircle(game_renderer *renderer, v2 position, f32 radius, v4 color);

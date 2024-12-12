@@ -41,8 +41,42 @@ DrawLine(game_renderer *gameRenderer, v2 point1, v2 point2, v4 color, f32 width)
 }
 
 void
-DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color, f32 width)
+DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color)
 {
+  // TODO: radius <= 0.2f causes artifacts
+  // TODO: PERFORMANCE: Lower API calls to one
   SDL_Renderer *renderer = gameRenderer->renderer;
   SDL_SetRenderDrawColorFloat(renderer, color.r, color.g, color.b, color.a);
+
+  f32 radiusInPixels = radius * PIXELS_PER_METER;
+  v2 positionInScreenSpace = ToScreenSpace(gameRenderer, position);
+  v2 offset = {0.0f, radiusInPixels};
+  f32 d = (radius - 1) * PIXELS_PER_METER;
+
+  while (offset.y >= offset.x) {
+    SDL_FPoint points[] = {
+        {positionInScreenSpace.x - offset.y, positionInScreenSpace.y + offset.x},
+        {positionInScreenSpace.x + offset.y, positionInScreenSpace.y + offset.x},
+        {positionInScreenSpace.x - offset.x, positionInScreenSpace.y + offset.y},
+        {positionInScreenSpace.x + offset.x, positionInScreenSpace.y + offset.y},
+        {positionInScreenSpace.x - offset.x, positionInScreenSpace.y - offset.y},
+        {positionInScreenSpace.x + offset.x, positionInScreenSpace.y - offset.y},
+        {positionInScreenSpace.x - offset.y, positionInScreenSpace.y - offset.x},
+        {positionInScreenSpace.x + offset.y, positionInScreenSpace.y - offset.x},
+    };
+    if (!SDL_RenderLines(renderer, points, ARRAY_COUNT(points)))
+      break;
+
+    if (d >= 2.0f * offset.x) {
+      d -= 2.0f * offset.x + 1.0f;
+      offset.x += 1;
+    } else if (d < 2.0f * (radiusInPixels - offset.y)) {
+      d += 2.0f * offset.y - 1.0f;
+      offset.y -= 1;
+    } else {
+      d += 2.0f * (offset.y - offset.x - 1.0f);
+      offset.y -= 1;
+      offset.x += 1;
+    }
+  }
 }

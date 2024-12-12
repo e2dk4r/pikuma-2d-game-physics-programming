@@ -2,6 +2,7 @@
 
 #include "math.h"
 #include "memory.h"
+#include "random.h"
 #include "renderer.h"
 #include "type.h"
 
@@ -65,12 +66,21 @@ typedef struct {
   game_controller controllers[3]; // 1 keyboard + 2 controllers
 } game_input;
 
+typedef struct particle {
+  v2 position;
+  v2 velocity;
+  v2 acceleration;
+  f32 mass;
+} particle;
+
 typedef struct {
   b8 isInitialized : 1;
 
   memory_arena worldArena;
 
-  particle particle;
+  random_series effectsEntropy;
+  particle *particles;
+  u32 particleCount;
 } game_state;
 
 typedef struct {

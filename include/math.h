@@ -36,6 +36,28 @@ Square(f32 value) {
   return value * value;
 }
 
+/* linear blend
+ *    .       .
+ *    A       B
+ *
+ * from A to B delta is
+ *    t = B - A
+ *
+ * for going from A to B is
+ *    C = A + (B - A)
+ *
+ * this can be formulated where t is [0, 1]
+ *    C(t) = A + t (B - A)
+ *    C(t) = A + t B - t A
+ *    C(t) = A (1 - t) + t B
+ */
+static inline f32
+Lerp(f32 a, f32 b, f32 t)
+{
+  f32 result = (1.0f - t) * a + t * b;
+  return result;
+}
+
 /*
  * Returns binary logarithm of 𝑥.
  *
@@ -205,10 +227,3 @@ typedef struct {
     f32 e[4];
   };
 } v4;
-
-typedef struct {
-  v2 position;
-  v2 velocity;
-  v2 acceleration;
-  f32 mass;
-} particle;
