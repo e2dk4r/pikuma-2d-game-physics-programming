@@ -89,16 +89,37 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       input = v2_scale(input, 1.0f / SquareRoot(inputLengthSq));
       debug_assert(v2_length(input) <= 1.0f);
     }
+  }
 
-    f32 speed = 3.0f;
-    particle->position = v2_add(particle->position, v2_scale(input, speed * dt));
+  f32 speed = 5.0f;
+  // acceleration = f''(t) = a
+  // velocity     = ∫f''(t)
+  //              = f'(t) = at + v₀
+  // position     = ∫f'(t)
+  //              = f(t) = ½at² + vt + p₀
+  particle->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
+  particle->velocity = v2_add(particle->velocity, v2_scale(particle->acceleration, dt));
+  particle->position =
+      // ½at² + vt + p₀
+      v2_add(particle->position, v2_add(
+                                     // ½at²
+                                     v2_scale(particle->acceleration, 0.5f * Square(dt)),
+                                     // + vt
+                                     v2_scale(particle->velocity, dt)));
 
+  // Is particle over 10m away from origin?
+  if (v2_length_square(particle->position) > Square(10.0f)) {
+    particle->position = (v2){0, 0};
+    particle->velocity = (v2){0, 0};
   }
 
   /*****************************************************************
    * RENDER
    *****************************************************************/
   ClearScreen(renderer, COLOR_ZINC_900);
-  DrawLine(renderer, particle->position, v2_add(particle->position, (v2){1, 0}), COLOR_RED_500, 5);
+  DrawLine(renderer, (v2){-100, 0}, (v2){100, 0}, COLOR_BLUE_500, 0);
+  DrawLine(renderer, (v2){0, -100}, (v2){0, 100}, COLOR_BLUE_500, 0);
+  DrawLine(renderer, particle->position, v2_add(particle->position, (v2){-0.1f, 0}), COLOR_RED_500, 5);
+  DrawLine(renderer, particle->position, v2_add(particle->position, (v2){0, 0.1f}), COLOR_RED_500, 5);
   RenderFrame(renderer);
 }

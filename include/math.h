@@ -31,6 +31,11 @@ Absolute(s64 value)
   return (u64)value;
 }
 
+static inline f32
+Square(f32 value) {
+  return value * value;
+}
+
 /*
  * Returns binary logarithm of 𝑥.
  *
