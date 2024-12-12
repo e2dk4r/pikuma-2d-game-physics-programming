@@ -46,10 +46,7 @@ GameLibraryReload(game_library *lib, sdl_state *state)
   StringBuilderAppendString(sb, &pwd);
   StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("/")); // seperator
   StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("game.so"));
-  string libPath = StringBuilderFlush(sb);
-
-  // SDL_GetPathInfo() needs zero terminated path
-  libPath.value[libPath.length] = 0;
+  string libPath = StringBuilderFlushZeroTerminated(sb);
 
   // get create time
   SDL_PathInfo libPathInfo;

@@ -83,3 +83,12 @@ StringBuilderFlush(string_builder *stringBuilder)
   stringBuilder->length = 0;
   return result;
 }
+
+static inline struct string
+StringBuilderFlushZeroTerminated(string_builder *stringBuilder)
+{
+  struct string result = StringBuilderFlush(stringBuilder);
+  result.value[result.length] = 0;
+  debug_assert(result.length + 1 <= stringBuilder->outBuffer->length);
+  return result;
+}
