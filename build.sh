@@ -370,11 +370,7 @@ if [ $IsBuildEnabled -eq 1 ]; then
     #. $ProjectRoot/shader/build.sh
 
     if [ $IsBuildDebug -eq 1 ]; then
-      src=""
-      src="$src $ProjectRoot/src/game.c"
-      src="$src $ProjectRoot/src/renderer.c"
-      src="${src# }"
-
+      src="$ProjectRoot/src/game.c"
       output="$OutputDir/$OUTPUT_NAME.so"
       inc="-I$ProjectRoot/include $INC_LIBSDL"
       lib="$LIB_LIBSDL $LIB_M"

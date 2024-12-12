@@ -4,6 +4,8 @@
 #include "renderer.h"
 #include "string_builder.h"
 
+#include "renderer.c"
+
 #if IS_BUILD_DEBUG
 #include <unistd.h> // write()
 #endif

@@ -12,9 +12,6 @@ typedef struct {
 #define METERS_PER_PIXEL (1.0f / PIXELS_PER_METER)
 
 void
-GameRendererInit(game_renderer *gameRenderer, s32 windowWidth, s32 windowHeight);
-
-void
 RenderFrame(game_renderer *renderer);
 
 void

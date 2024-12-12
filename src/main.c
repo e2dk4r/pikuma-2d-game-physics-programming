@@ -1,8 +1,8 @@
+#include <unistd.h> // write()
+
 #include "compiler.h"
 #include "game.h"
-#include "renderer.c"
 #include "type.h"
-#include <unistd.h> // write()
 
 #if !IS_BUILD_DEBUG
 #include "game.c"
@@ -365,6 +365,7 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
   game_renderer *renderer = &state->renderer;
   s32 windowWidth = 1280;
   s32 windowHeight = 720;
+  renderer->screenCenter = (v2){(f32)windowWidth * 0.5f, (f32)windowHeight * 0.5f};
   if (!SDL_CreateWindowAndRenderer("Example Title", windowWidth, windowHeight, 0, &state->window,
                                    &renderer->renderer)) {
     return SDL_APP_FAILURE;
@@ -380,8 +381,6 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
   //                         (f32)windowHeight * PIXELS_PER_METER)) {
   //   return SDL_APP_FAILURE;
   // }
-
-  GameRendererInit(renderer, windowWidth, windowHeight);
 
   state->lastTime = SDL_GetTicksNS();
 

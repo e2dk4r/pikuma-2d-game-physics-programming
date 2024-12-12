@@ -1,11 +1,5 @@
 #include "renderer.h"
 
-void
-GameRendererInit(game_renderer *gameRenderer, s32 windowWidth, s32 windowHeight)
-{
-  gameRenderer->screenCenter = (v2){(f32)windowWidth * 0.5f, (f32)windowHeight * 0.5f};
-}
-
 static inline v2
 ToScreenSpace(game_renderer *gameRenderer, v2 point)
 {
