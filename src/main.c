@@ -48,15 +48,18 @@ GameLibraryReload(game_library *lib, sdl_state *state)
   StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("game.so"));
   string libPath = StringBuilderFlush(sb);
 
+  // SDL_GetPathInfo() needs zero terminated path
+  libPath.value[libPath.length] = 0;
+
   // get create time
   SDL_PathInfo libPathInfo;
   b8 isFileExists = SDL_GetPathInfo((const char *)libPath.value, &libPathInfo);
-  runtime_assert(isFileExists);
-  u64 libCreatedAt = (u64)libPathInfo.create_time;
-
-  if (lib->loadedAt == libCreatedAt) {
+  if (!isFileExists)
     return;
-  }
+
+  u64 libCreatedAt = (u64)libPathInfo.create_time;
+  if (lib->loadedAt == libCreatedAt)
+    return;
 
   // close already open library
   if (lib->handle) {
@@ -65,7 +68,7 @@ GameLibraryReload(game_library *lib, sdl_state *state)
   }
 
   lib->handle = SDL_LoadObject((const char *)libPath.value);
-  debug_assert(lib->handle);
+  debug_assert(lib->handle && "cannot load library");
 
   lib->GameUpdateAndRender = (pfnGameUpdateAndRender)SDL_LoadFunction(lib->handle, "GameUpdateAndRender");
   debug_assert(lib->GameUpdateAndRender && "library malformed");
@@ -88,6 +91,11 @@ SDL_AppIterate(void *appstate)
   u64 nowInNanoseconds = SDL_GetTicksNS();
   debug_assert(nowInNanoseconds > 0);
   u64 elapsedInNanoseconds = nowInNanoseconds - state->lastTime;
+#if IS_BUILD_DEBUG
+  // Prevent ∆t to be valid when debugging
+  if (elapsedInNanoseconds > 17000000 /* 17ms */)
+    elapsedInNanoseconds = 16666666;
+#endif
 
   state->inputIndex = state->inputIndex++ % ARRAY_SIZE(state->inputs);
   game_input *newInput = state->inputs + state->inputIndex;
@@ -98,9 +106,7 @@ SDL_AppIterate(void *appstate)
 #if IS_BUILD_DEBUG
   GameLibraryReload(&state->lib, state);
   pfnGameUpdateAndRender GameUpdateAndRender = state->lib.GameUpdateAndRender;
-  debug_assert(GameUpdateAndRender);
 #endif
-
   GameUpdateAndRender(memory, newInput, renderer);
 
   state->lastTime = nowInNanoseconds;
