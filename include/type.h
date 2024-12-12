@@ -37,5 +37,5 @@ typedef double f64;
 #define F64_LOWEST (-F64_MAX)
 
 #define global static
-#define comptime static
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
+#define comptime const static
+#define ARRAY_COUNT(a) (sizeof(a) / sizeof(a[0]))

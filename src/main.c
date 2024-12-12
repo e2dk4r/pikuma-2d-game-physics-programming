@@ -94,7 +94,7 @@ SDL_AppIterate(void *appstate)
     elapsedInNanoseconds = 16666666;
 #endif
 
-  state->inputIndex = state->inputIndex++ % ARRAY_SIZE(state->inputs);
+  state->inputIndex = state->inputIndex++ % ARRAY_COUNT(state->inputs);
   game_input *newInput = state->inputs + state->inputIndex;
   newInput->dt = (f32)elapsedInNanoseconds * 1e-9f;
 
@@ -124,7 +124,7 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
 
   case SDL_EVENT_KEY_DOWN:
   case SDL_EVENT_KEY_UP: {
-    game_controller *keyboard = GameControllerGetKeyboard(input->controllers, ARRAY_SIZE(input->controllers));
+    game_controller *keyboard = GameControllerGetKeyboard(input->controllers, ARRAY_COUNT(input->controllers));
 
 #if (0 && IS_BUILD_DEBUG)
     SDL_KeyboardEvent keyboardEvent = event->key;
@@ -162,7 +162,7 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
   case SDL_EVENT_GAMEPAD_ADDED: {
     SDL_GamepadDeviceEvent deviceEvent = event->gdevice;
     s32 gamepadIndex = SDL_GetGamepadPlayerIndexForID(deviceEvent.which);
-    if (gamepadIndex < 0 || gamepadIndex >= ARRAY_SIZE(input->controllers) - 1 /* index 0 is reserved for keyboard */)
+    if (gamepadIndex < 0 || gamepadIndex >= ARRAY_COUNT(input->controllers) - 1 /* index 0 is reserved for keyboard */)
       break;
 
     SDL_OpenGamepad(deviceEvent.which);
@@ -174,10 +174,10 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     s32 gamepadIndex = SDL_GetGamepadPlayerIndexForID(deviceEvent.which);
     if (gamepadIndex < 0)
       break;
-    for (u32 inputIndex = 0; inputIndex < ARRAY_SIZE(state->inputs); inputIndex++) {
+    for (u32 inputIndex = 0; inputIndex < ARRAY_COUNT(state->inputs); inputIndex++) {
       game_input *input = state->inputs + inputIndex;
       game_controller *controller =
-          GameControllerGetGamepad(input->controllers, ARRAY_SIZE(input->controllers), (u32)gamepadIndex);
+          GameControllerGetGamepad(input->controllers, ARRAY_COUNT(input->controllers), (u32)gamepadIndex);
       memset(controller, 0, sizeof(*controller));
     }
   } break;
@@ -190,7 +190,7 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     if (gamepadIndex < 0)
       break;
     game_controller *controller =
-        GameControllerGetGamepad(input->controllers, ARRAY_SIZE(input->controllers), (u32)gamepadIndex);
+        GameControllerGetGamepad(input->controllers, ARRAY_COUNT(input->controllers), (u32)gamepadIndex);
 
     b8 isPressed = buttonEvent.down;
     switch (buttonEvent.button) {
@@ -257,7 +257,7 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     f32 value = ((f32)(axisEvent.value - S16_MIN) / U16_MAX) * 2.0f - 1.0f;
 
     game_controller *controller =
-        GameControllerGetGamepad(input->controllers, ARRAY_SIZE(input->controllers), (u32)gamepadIndex);
+        GameControllerGetGamepad(input->controllers, ARRAY_COUNT(input->controllers), (u32)gamepadIndex);
     switch (axisEvent.axis) {
     case SDL_GAMEPAD_AXIS_LEFTX: {
       controller->lsX = value;
@@ -302,7 +302,7 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
         {SDL_PROP_APP_METADATA_COPYRIGHT_STRING, "Copyright © 2024"},
         {SDL_PROP_APP_METADATA_TYPE_STRING, "game"},
     };
-    for (u32 index = 0; index < ARRAY_SIZE(metadata); index++) {
+    for (u32 index = 0; index < ARRAY_COUNT(metadata); index++) {
       if (!SDL_SetAppMetadataProperty(metadata[index].key, metadata[index].value)) {
         return SDL_APP_FAILURE;
       }

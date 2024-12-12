@@ -89,7 +89,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     write(STDOUT_FILENO, string.value, string.length);
   }
 #endif
-  for (u32 controllerIndex = 0; controllerIndex < ARRAY_SIZE(input->controllers); controllerIndex++) {
+  for (u32 controllerIndex = 0; controllerIndex < ARRAY_COUNT(input->controllers); controllerIndex++) {
     game_controller *controller = input->controllers + controllerIndex;
     v2 input = {controller->lsX, controller->lsY};
     f32 inputLengthSq = v2_length_square(input);
