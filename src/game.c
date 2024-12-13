@@ -83,6 +83,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   /*****************************************************************
    * INPUT HANDLING
    *****************************************************************/
+  v2 inputForce = {};
   for (u32 controllerIndex = 0; controllerIndex < ARRAY_COUNT(input->controllers); controllerIndex++) {
     game_controller *controller = input->controllers + controllerIndex;
     v2 input = {controller->lsX, controller->lsY};
@@ -92,6 +93,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       input = v2_scale(input, 1.0f / SquareRoot(inputLengthSq));
       debug_assert(v2_length(input) <= 1.0f);
     }
+
+    inputForce = v2_add(inputForce, input);
   }
 
 #if (1 && IS_BUILD_DEBUG)
@@ -137,45 +140,50 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 #endif
 
   f32 ground = -5.8f;
+
+  v2 windForce = {2.0f, 0.0f};
+  // see: https://en.wikipedia.org/wiki/Gravity_of_Earth
+  v2 gravitationForce = {0.0f, -9.80665f};
+
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
     struct particle *particle = state->particles + particleIndex;
 
-    v2 sumOfForces = {0, 0};
-    v2 windForce = {2.0f, 0.0f};
+    v2 sumOfForces = {0.0f, 0.0f};
+    // apply input force
+    sumOfForces = v2_add(sumOfForces, v2_scale(inputForce, 5.0f));
+    // apply wind force
     sumOfForces = v2_add(sumOfForces, windForce);
-    // see: https://en.wikipedia.org/wiki/Gravity_of_Earth
-    v2 gravitationForce = {0.0f, -9.80665f};
+    // apply weight force Fw = mg
     v2 weightForce = v2_scale(gravitationForce, particle->mass);
     sumOfForces = v2_add(sumOfForces, weightForce);
-    {
-      // F = ma
-      // a = F/m
-      particle->acceleration = v2_scale(sumOfForces, particle->invMass);
 
-      // acceleration = f''(t) = a
-      // particle->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
+    // F = ma
+    // a = F/m
+    particle->acceleration = v2_scale(sumOfForces, particle->invMass);
 
-      // velocity     = ∫f''(t)
-      //              = f'(t) = at + v₀
-      // position     = ∫f'(t)
-      //              = f(t) = ½at² + vt + p₀
-      particle->velocity = v2_add(particle->velocity, v2_scale(particle->acceleration, dt));
-      particle->position =
-          // ½at² + vt + p₀
-          v2_add(particle->position, v2_add(
-                                         // ½at²
-                                         v2_scale(particle->acceleration, 0.5f * Square(dt)),
-                                         // + vt
-                                         v2_scale(particle->velocity, dt)));
+    // acceleration = f''(t) = a
+    // particle->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
 
-      if (particle->position.y <= ground) {
-        v2 groundNormal = {0.0f, 1.0f};
+    // velocity     = ∫f''(t)
+    //              = f'(t) = at + v₀
+    // position     = ∫f'(t)
+    //              = f(t) = ½at² + vt + p₀
+    particle->velocity = v2_add(particle->velocity, v2_scale(particle->acceleration, dt));
+    particle->position =
+        // ½at² + vt + p₀
+        v2_add(particle->position, v2_add(
+                                       // ½at²
+                                       v2_scale(particle->acceleration, 0.5f * Square(dt)),
+                                       // + vt
+                                       v2_scale(particle->velocity, dt)));
 
-        // reflect
-        // v' = v - 2(v∙n)n
-        particle->velocity =
-            v2_sub(particle->velocity, v2_scale(groundNormal, 2.0f * v2_dot(particle->velocity, groundNormal)));
-      }
+    if (particle->position.y <= ground) {
+      v2 groundNormal = {0.0f, 1.0f};
+
+      // reflect
+      // v' = v - 2(v∙n)n
+      particle->velocity =
+          v2_sub(particle->velocity, v2_scale(groundNormal, 2.0f * v2_dot(particle->velocity, groundNormal)));
     }
 
     // Is particle over 10m away from origin?
