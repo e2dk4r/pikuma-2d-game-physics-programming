@@ -82,6 +82,8 @@ typedef struct {
   random_series effectsEntropy;
   particle *particles;
   u32 particleCount;
+
+  rect liquid;
 } game_state;
 
 typedef struct {

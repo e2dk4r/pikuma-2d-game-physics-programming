@@ -80,3 +80,24 @@ DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color)
     }
   }
 }
+
+void
+DrawRect(game_renderer *gameRenderer, rect rect, v4 color)
+{
+  debug_assert(rect.min.x != rect.max.x && rect.min.y != rect.max.y && "invalid rect");
+
+  v2 leftBottom = ToScreenSpace(gameRenderer, rect.min);
+  v2 dim = v2_scale(RectGetDim(rect), PIXELS_PER_METER);
+  v2 leftTop = v2_add(leftBottom, (v2){0.0f, -dim.y});
+
+  SDL_FRect sdlRect = {
+      .x = leftTop.x,
+      .y = leftTop.y,
+      .w = dim.x,
+      .h = dim.y,
+  };
+
+  SDL_Renderer *renderer = gameRenderer->renderer;
+  SDL_SetRenderDrawColorFloat(renderer, color.r, color.g, color.b, color.a);
+  SDL_RenderFillRect(renderer, &sdlRect);
+}

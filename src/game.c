@@ -46,6 +46,11 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       particle->invMass = 1.0f / particle->mass;
     }
 
+    state->liquid = (rect){
+        .min = {-15.0f, 0.0f},
+        .max = {15.0f, 10.0f},
+    };
+
     state->isInitialized = 1;
   }
 
@@ -156,6 +161,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     // apply weight force Fw = mg
     v2 weightForce = v2_scale(gravitationForce, particle->mass);
     sumOfForces = v2_add(sumOfForces, weightForce);
+
+    // TODO: only apply drag force when we are inside the liquid
     // apply drag force
     v2 dragForce = {0.0f, 0.0f};
     if (v2_length_square(particle->velocity) > 0.0f) {
@@ -229,6 +236,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
   // ground
   DrawLine(renderer, (v2){-15, ground}, (v2){15, ground}, COLOR_GRAY_500, 1);
+
+  // liquid
+  DrawRect(renderer, state->liquid, COLOR_BLUE_950);
 
   // particles
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {

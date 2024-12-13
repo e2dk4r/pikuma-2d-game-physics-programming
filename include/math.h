@@ -235,3 +235,36 @@ typedef struct {
     f32 e[4];
   };
 } v4;
+
+typedef struct rect {
+  v2 min;
+  v2 max;
+} rect;
+
+static inline struct rect
+RectCenterHalfDim(v2 center, v2 halfDim)
+{
+  return (struct rect){
+      .min = v2_sub(center, halfDim),
+      .max = v2_add(center, halfDim),
+  };
+}
+
+static inline struct rect
+RectCenterDim(v2 center, v2 dim)
+{
+  v2 halfDim = v2_scale(dim, 0.5f);
+  return RectCenterHalfDim(center, halfDim);
+}
+
+static inline v2
+RectGetDim(struct rect rect)
+{
+  return v2_sub(rect.max, rect.min);
+}
+
+static inline v2
+RectGetHalfDim(struct rect rect)
+{
+  return v2_scale(RectGetDim(rect), 0.5f);
+}
