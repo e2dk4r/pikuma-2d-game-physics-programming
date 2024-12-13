@@ -101,3 +101,13 @@ DrawRect(game_renderer *gameRenderer, rect rect, v4 color)
   SDL_SetRenderDrawColorFloat(renderer, color.r, color.g, color.b, color.a);
   SDL_RenderFillRect(renderer, &sdlRect);
 }
+
+rect
+RendererGetSurfaceRect(game_renderer *renderer)
+{
+  v2 screenCenterInMeters = v2_scale(renderer->screenCenter, METERS_PER_PIXEL);
+  return (rect){
+      .min = v2_neg(screenCenterInMeters), // left bottom
+      .max = screenCenterInMeters,         // right top
+  };
+}

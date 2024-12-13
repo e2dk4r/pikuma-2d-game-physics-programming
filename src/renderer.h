@@ -25,3 +25,6 @@ DrawCircle(game_renderer *renderer, v2 position, f32 radius, v4 color);
 
 void
 DrawRect(game_renderer *renderer, rect rect, v4 color);
+
+rect
+RendererGetSurfaceRect(game_renderer *renderer);

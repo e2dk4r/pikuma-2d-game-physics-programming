@@ -46,9 +46,10 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       particle->invMass = 1.0f / particle->mass;
     }
 
+    rect surfaceRect = RendererGetSurfaceRect(renderer);
     state->liquid = (rect){
-        .min = {-15.0f, 0.0f},
-        .max = {15.0f, 10.0f},
+        .min = surfaceRect.min,
+        .max = {surfaceRect.max.x, 0.0f},
     };
 
     state->isInitialized = 1;
