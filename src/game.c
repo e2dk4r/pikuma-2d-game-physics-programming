@@ -39,7 +39,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
           .position =
               {
                   .x = RandomBetween(effectsEntropy, -3.0f, 3.0f),
-                  .y = RandomBetween(effectsEntropy, -3.0f, 3.0f),
+                  .y = RandomBetween(effectsEntropy, 3.0f, 5.0f),
               },
           .mass = RandomBetween(effectsEntropy, 1.0f, 5.0f),
       };
@@ -219,7 +219,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       random_series *effectsEntropy = &state->effectsEntropy;
       particle->position = (v2){
           .x = RandomBetween(effectsEntropy, -5.0f, 5.0f),
-          .y = RandomBetween(effectsEntropy, -3.0f, 3.0f),
+          .y = RandomBetween(effectsEntropy, 3.0f, 5.0f),
       };
       particle->velocity = (v2){0, 0};
     }
