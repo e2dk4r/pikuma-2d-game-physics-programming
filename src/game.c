@@ -43,6 +43,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
               },
           .mass = RandomBetween(effectsEntropy, 1.0f, 5.0f),
       };
+      particle->invMass = 1.0f / particle->mass;
     }
 
     state->isInitialized = 1;
@@ -149,7 +150,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     {
       // F = ma
       // a = F/m
-      particle->acceleration = v2_scale(sumOfForces, 1.0f / particle->mass);
+      particle->acceleration = v2_scale(sumOfForces, particle->invMass);
 
       // acceleration = f''(t) = a
       // particle->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
