@@ -186,6 +186,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
           v2_sub(particle->velocity, v2_scale(groundNormal, 2.0f * v2_dot(particle->velocity, groundNormal)));
     }
 
+    // TODO: Ground collision is broken
     // Is particle over 10m away from origin?
     if (v2_length_square(particle->position) > Square(10.0f)) {
       random_series *effectsEntropy = &state->effectsEntropy;

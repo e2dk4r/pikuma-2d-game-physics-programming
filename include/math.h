@@ -182,6 +182,13 @@ v2_normalize(v2 a)
   return v2_scale(a, length);
 }
 
+static inline v2
+v2_neg(v2 a)
+{
+  v2 result = v2_scale(a, -1.0f);
+  return result;
+}
+
 typedef struct {
   union {
     struct {
