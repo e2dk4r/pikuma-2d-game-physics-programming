@@ -135,12 +135,15 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   }
 #endif
 
+  f32 ground = -5.8f;
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
     struct particle *particle = state->particles + particleIndex;
 
     v2 sumOfForces = {0, 0};
     v2 windForce = {-2.0f, 0.0f};
     sumOfForces = v2_add(sumOfForces, windForce);
+    v2 gravitationForce = {0.0f, -9.8f};
+    sumOfForces = v2_add(sumOfForces, gravitationForce);
     {
       // F = ma
       // a = F/m
@@ -161,6 +164,15 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
                                          v2_scale(particle->acceleration, 0.5f * Square(dt)),
                                          // + vt
                                          v2_scale(particle->velocity, dt)));
+
+      if (particle->position.y <= ground) {
+        v2 groundNormal = {0.0f, 1.0f};
+
+        // reflect
+        // v' = v - 2(v∙n)n
+        particle->velocity = v2_sub(particle->velocity,
+                                    v2_scale(v2_scale(groundNormal, v2_dot(particle->velocity, groundNormal)), 2.0f));
+      }
     }
 
     // Is particle over 10m away from origin?
@@ -178,9 +190,17 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
    * RENDER
    *****************************************************************/
   ClearScreen(renderer, COLOR_ZINC_900);
+
+#if (0)
+  // Cartesian coordinate system
   DrawLine(renderer, (v2){-100, 0}, (v2){100, 0}, COLOR_BLUE_500, 0);
   DrawLine(renderer, (v2){0, -100}, (v2){0, 100}, COLOR_BLUE_500, 0);
+#endif
 
+  // ground
+  DrawLine(renderer, (v2){-15, ground}, (v2){15, ground}, COLOR_GRAY_500, 1);
+
+  // particles
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
     struct particle *particle = state->particles + particleIndex;
 
