@@ -32,7 +32,8 @@ Absolute(s64 value)
 }
 
 static inline f32
-Square(f32 value) {
+Square(f32 value)
+{
   return value * value;
 }
 
