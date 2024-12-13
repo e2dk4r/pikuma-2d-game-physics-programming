@@ -140,6 +140,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
     STRING_BUILDER_APPEND_PARTICLE("slowest particle:", slowestParticle);
     STRING_BUILDER_APPEND_PARTICLE("fastest particle:", fastestParticle);
+#undef STRING_BUILDER_APPEND_PARTICLE
+
     string string = StringBuilderFlush(sb);
     write(STDOUT_FILENO, string.value, string.length);
   }
