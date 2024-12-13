@@ -41,7 +41,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
                   .x = RandomBetween(effectsEntropy, -3.0f, 3.0f),
                   .y = RandomBetween(effectsEntropy, -3.0f, 3.0f),
               },
-          .mass = RandomBetween(effectsEntropy, 1.0f, 10.0f),
+          .mass = RandomBetween(effectsEntropy, 1.0f, 5.0f),
       };
     }
 
@@ -140,10 +140,12 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     struct particle *particle = state->particles + particleIndex;
 
     v2 sumOfForces = {0, 0};
-    v2 windForce = {-2.0f, 0.0f};
+    v2 windForce = {2.0f, 0.0f};
     sumOfForces = v2_add(sumOfForces, windForce);
-    v2 gravitationForce = {0.0f, -9.8f};
-    sumOfForces = v2_add(sumOfForces, gravitationForce);
+    // see: https://en.wikipedia.org/wiki/Gravity_of_Earth
+    v2 gravitationForce = {0.0f, -9.80665f};
+    v2 weightForce = v2_scale(gravitationForce, particle->mass);
+    sumOfForces = v2_add(sumOfForces, weightForce);
     {
       // F = ma
       // a = F/m
@@ -170,8 +172,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
         // reflect
         // v' = v - 2(v∙n)n
-        particle->velocity = v2_sub(particle->velocity,
-                                    v2_scale(v2_scale(groundNormal, v2_dot(particle->velocity, groundNormal)), 2.0f));
+        particle->velocity =
+            v2_sub(particle->velocity, v2_scale(groundNormal, 2.0f * v2_dot(particle->velocity, groundNormal)));
       }
     }
 
@@ -179,7 +181,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     if (v2_length_square(particle->position) > Square(10.0f)) {
       random_series *effectsEntropy = &state->effectsEntropy;
       particle->position = (v2){
-          .x = RandomBetween(effectsEntropy, -3.0f, 3.0f),
+          .x = RandomBetween(effectsEntropy, -5.0f, 5.0f),
           .y = RandomBetween(effectsEntropy, -3.0f, 3.0f),
       };
       particle->velocity = (v2){0, 0};

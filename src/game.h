@@ -67,10 +67,10 @@ typedef struct {
 } game_input;
 
 typedef struct particle {
-  v2 position;
-  v2 velocity;
-  v2 acceleration;
-  f32 mass;
+  v2 position;     // unit: m
+  v2 velocity;     // unit: m/s
+  v2 acceleration; // unit: m/s²
+  f32 mass;        // unit: kg
 } particle;
 
 typedef struct {
