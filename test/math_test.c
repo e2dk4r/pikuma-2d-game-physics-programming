@@ -3,11 +3,13 @@
 // TODO: Show error pretty error message when a test fails
 enum math_test_error {
   MATH_TEST_ERROR_NONE = 0,
-  MEMORY_TEST_ERROR_CLAMP_EXPECTED_INPUT,
-  MEMORY_TEST_ERROR_CLAMP_EXPECTED_MIN,
-  MEMORY_TEST_ERROR_CLAMP_EXPECTED_MAX,
-  MEMORY_TEST_ERROR_IS_POWER_OF_TWO_EXPECTED_TRUE,
-  MEMORY_TEST_ERROR_IS_POWER_OF_TWO_EXPECTED_FALSE,
+  MATH_TEST_ERROR_CLAMP_EXPECTED_INPUT,
+  MATH_TEST_ERROR_CLAMP_EXPECTED_MIN,
+  MATH_TEST_ERROR_CLAMP_EXPECTED_MAX,
+  MATH_TEST_ERROR_IS_POWER_OF_TWO_EXPECTED_TRUE,
+  MATH_TEST_ERROR_IS_POWER_OF_TWO_EXPECTED_FALSE,
+  MATH_TEST_ERROR_IS_POINT_INSIDE_RECT_EXPECTED_TRUE,
+  MATH_TEST_ERROR_IS_POINT_INSIDE_RECT_EXPECTED_FALSE,
 
   // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
   // For the default exitcode testing protocol, the GNU standard approach in
@@ -42,7 +44,7 @@ main(void)
     expected = input;
     value = Clamp(input, min, max);
     if (value != expected) {
-      errorCode = MEMORY_TEST_ERROR_CLAMP_EXPECTED_INPUT;
+      errorCode = MATH_TEST_ERROR_CLAMP_EXPECTED_INPUT;
       goto end;
     }
 
@@ -50,7 +52,7 @@ main(void)
     expected = min;
     value = Clamp(input, min, max);
     if (value != expected) {
-      errorCode = MEMORY_TEST_ERROR_CLAMP_EXPECTED_MIN;
+      errorCode = MATH_TEST_ERROR_CLAMP_EXPECTED_MIN;
       goto end;
     }
 
@@ -58,7 +60,7 @@ main(void)
     expected = max;
     value = Clamp(input, min, max);
     if (value != expected) {
-      errorCode = MEMORY_TEST_ERROR_CLAMP_EXPECTED_MAX;
+      errorCode = MATH_TEST_ERROR_CLAMP_EXPECTED_MAX;
       goto end;
     }
   }
@@ -72,7 +74,7 @@ main(void)
     expected = 1;
     value = IsPowerOfTwo(input);
     if (value != expected) {
-      errorCode = MEMORY_TEST_ERROR_IS_POWER_OF_TWO_EXPECTED_TRUE;
+      errorCode = MATH_TEST_ERROR_IS_POWER_OF_TWO_EXPECTED_TRUE;
       goto end;
     }
 
@@ -80,7 +82,49 @@ main(void)
     expected = 0;
     value = IsPowerOfTwo(input);
     if (value != expected) {
-      errorCode = MEMORY_TEST_ERROR_IS_POWER_OF_TWO_EXPECTED_FALSE;
+      errorCode = MATH_TEST_ERROR_IS_POWER_OF_TWO_EXPECTED_FALSE;
+      goto end;
+    }
+  }
+
+  // IsPointInsideRect(struct rect rect, v2 point)
+  {
+    struct rect rect = {
+        .min = {0.0f, 0.0f},
+        .max = {10.0f, 10.0f},
+    };
+    struct v2 point;
+    b8 expected, value;
+
+    point = (struct v2){0.0f, 0.0f};
+    expected = 1;
+    value = IsPointInsideRect(point, rect);
+    if (value != expected) {
+      errorCode = MATH_TEST_ERROR_IS_POINT_INSIDE_RECT_EXPECTED_TRUE;
+      goto end;
+    }
+
+    point = (struct v2){1.0f, 1.0f};
+    expected = 1;
+    value = IsPointInsideRect(point, rect);
+    if (value != expected) {
+      errorCode = MATH_TEST_ERROR_IS_POINT_INSIDE_RECT_EXPECTED_TRUE;
+      goto end;
+    }
+
+    point = (struct v2){10.0f, 10.0f};
+    expected = 0;
+    value = IsPointInsideRect(point, rect);
+    if (value != expected) {
+      errorCode = MATH_TEST_ERROR_IS_POINT_INSIDE_RECT_EXPECTED_FALSE;
+      goto end;
+    }
+
+    point = (struct v2){50.0f, 50.0f};
+    expected = 0;
+    value = IsPointInsideRect(point, rect);
+    if (value != expected) {
+      errorCode = MATH_TEST_ERROR_IS_POINT_INSIDE_RECT_EXPECTED_FALSE;
       goto end;
     }
   }

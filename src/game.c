@@ -163,25 +163,26 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     v2 weightForce = v2_scale(gravitationForce, particle->mass);
     sumOfForces = v2_add(sumOfForces, weightForce);
 
-    // TODO: only apply drag force when we are inside the liquid
-    // apply drag force
-    v2 dragForce = {0.0f, 0.0f};
-    if (v2_length_square(particle->velocity) > 0.0f) {
-      // Drag force law is:
-      //   F = ½ ρ K A ||v||² (-normalized(v))
-      //   where ρ is fluid density
-      //         K is coefficient of drag
-      //         A is cross-sectional area
-      //         v is velocity
-      //         ||v||² is velocity's magnitude squared
-      // We can simplify this formul by replacing all constant to:
-      //   F = k ||v||² (-normalized(v))
-      v2 dragDirection = v2_neg(v2_normalize(particle->velocity));
-      f32 k = 0.05f;
-      f32 dragMagnitude = k * v2_length_square(particle->velocity);
-      dragForce = v2_scale(dragDirection, dragMagnitude);
+    // apply drag force when we are inside the liquid
+    if (IsPointInsideRect(particle->position, state->liquid)) {
+      v2 dragForce = {0.0f, 0.0f};
+      if (v2_length_square(particle->velocity) > 0.0f) {
+        // Drag force law is:
+        //   F = ½ ρ K A ||v||² (-normalized(v))
+        //   where ρ is fluid density
+        //         K is coefficient of drag
+        //         A is cross-sectional area
+        //         v is velocity
+        //         ||v||² is velocity's magnitude squared
+        // We can simplify this formul by replacing all constant to:
+        //   F = k ||v||² (-normalized(v))
+        v2 dragDirection = v2_neg(v2_normalize(particle->velocity));
+        f32 k = 0.05f;
+        f32 dragMagnitude = k * v2_length_square(particle->velocity);
+        dragForce = v2_scale(dragDirection, dragMagnitude);
+      }
+      sumOfForces = v2_add(sumOfForces, dragForce);
     }
-    sumOfForces = v2_add(sumOfForces, dragForce);
 
     // F = ma
     // a = F/m

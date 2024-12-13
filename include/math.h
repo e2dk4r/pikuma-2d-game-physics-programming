@@ -122,7 +122,7 @@ SquareRoot(f32 value)
   return sqrtf(value);
 }
 
-typedef struct {
+typedef struct v2 {
   union {
     struct {
       f32 x;
@@ -190,7 +190,7 @@ v2_neg(v2 a)
   return result;
 }
 
-typedef struct {
+typedef struct v3 {
   union {
     struct {
       f32 x;
@@ -209,7 +209,7 @@ typedef struct {
   };
 } v3;
 
-typedef struct {
+typedef struct v4 {
   union {
     struct {
       f32 x;
@@ -237,8 +237,8 @@ typedef struct {
 } v4;
 
 typedef struct rect {
-  v2 min;
-  v2 max;
+  struct v2 min; // left bottom
+  struct v2 max; // right top
 } rect;
 
 static inline struct rect
@@ -257,14 +257,28 @@ RectCenterDim(v2 center, v2 dim)
   return RectCenterHalfDim(center, halfDim);
 }
 
-static inline v2
+static inline struct v2
 RectGetDim(struct rect rect)
 {
   return v2_sub(rect.max, rect.min);
 }
 
-static inline v2
+static inline struct v2
 RectGetHalfDim(struct rect rect)
 {
   return v2_scale(RectGetDim(rect), 0.5f);
+}
+
+static inline b8
+IsPointInsideRect(struct v2 point, struct rect rect)
+{
+  debug_assert(rect.min.x < rect.max.x && rect.min.y < rect.max.y && "invalid rect");
+  return
+      // x axis
+      point.x >= rect.min.x &&
+      point.x < rect.max.x
+      // y axis
+      && point.y >= rect.min.y && point.y < rect.max.y
+      //
+      ;
 }
