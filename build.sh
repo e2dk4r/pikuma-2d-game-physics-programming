@@ -19,8 +19,11 @@ usage() {
     Build script of $PROJECT_NAME.
   
   OPTIONS
-    --debug
+    -d, --debug
       Build with debugging information.
+
+    -r, --release
+      Build with optimizations turned on.
 
     --build-directory=path
       Build executables in this folder. If directory not exists, one will be
@@ -46,8 +49,11 @@ EOF
 
 for i in "$@"; do
   case $i in
-    --debug)
+    -d|--debug)
       IsBuildDebug=1
+      ;;
+    -r|--release)
+      IsBuildDebug=0
       ;;
     --build-directory=*)
       OutputDir="${i#*=}"
@@ -313,6 +319,8 @@ if [ $IsBuildDebug -eq 1 ]; then
   cflags="$cflags -g -O0"
   cflags="$cflags -Wno-unused-but-set-variable"
   cflags="$cflags -Wno-unused-variable"
+else
+  cflags="$cflags -O2"
 fi
 
 if [ $IsOSLinux -eq 1 ]; then
