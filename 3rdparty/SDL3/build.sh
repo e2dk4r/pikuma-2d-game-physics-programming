@@ -71,7 +71,11 @@ if [ ! -e "$LIBSDL_DIR-install/lib64/libSDL${LIBSDL_VERSION%%.*}.so" ]; then
     -D SDL_SHARED=ON \
     -D SDL_STATIC=OFF
 
-  ninja -C "$LIBSDL_DIR/build" install -j8
+  target=install
+  if [ $IsBuildDebug -eq 0 ]; then
+    target=install/strip
+  fi
+  ninja -C "$LIBSDL_DIR/build" $target -j8
   elapsed=$(StopTimer)
   Log "- built in $elapsed seconds"
 fi
