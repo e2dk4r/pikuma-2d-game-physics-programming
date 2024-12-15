@@ -43,18 +43,21 @@ DrawLine(game_renderer *gameRenderer, v2 point1, v2 point2, v4 color, f32 width)
 void
 DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color)
 {
-  // TODO: radius <= 0.2f causes artifacts
-  // TODO: PERFORMANCE: Lower API calls to one
-  SDL_Renderer *renderer = gameRenderer->renderer;
-  SDL_SetRenderDrawColorFloat(renderer, color.r, color.g, color.b, color.a);
+  __cleanup_memory_temp__ memory_temp memory = MemoryTempBegin(&gameRenderer->memory);
 
+  u32 pointMax = 1000; // TODO: find maxiumum points needed from radius
+  u32 pointCount = 0;
+  SDL_FPoint *points = MemoryArenaPush(memory.arena, sizeof(*points) * pointMax, 4);
+
+#if 0
+  // TODO: radius <= 0.2f causes artifacts
   f32 radiusInPixels = radius * PIXELS_PER_METER;
   v2 positionInScreenSpace = ToScreenSpace(gameRenderer, position);
   v2 offset = {0.0f, radiusInPixels};
   f32 d = (radius - 1) * PIXELS_PER_METER;
 
   while (offset.y >= offset.x) {
-    SDL_FPoint points[] = {
+    SDL_FPoint p[] = {
         {positionInScreenSpace.x - offset.y, positionInScreenSpace.y + offset.x},
         {positionInScreenSpace.x + offset.y, positionInScreenSpace.y + offset.x},
         {positionInScreenSpace.x - offset.x, positionInScreenSpace.y + offset.y},
@@ -64,8 +67,9 @@ DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color)
         {positionInScreenSpace.x - offset.y, positionInScreenSpace.y - offset.x},
         {positionInScreenSpace.x + offset.y, positionInScreenSpace.y - offset.x},
     };
-    if (!SDL_RenderLines(renderer, points, ARRAY_COUNT(points)))
-      break;
+    memcpy(points + pointCount, p, ARRAY_COUNT(p) * sizeof(*p));
+    pointCount += ARRAY_COUNT(p);
+    debug_assert(pointCount <= pointMax);
 
     if (d >= 2.0f * offset.x) {
       d -= 2.0f * offset.x + 1.0f;
@@ -79,6 +83,37 @@ DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color)
       offset.x += 1;
     }
   }
+#else
+  f32 radiusInPixels = radius * PIXELS_PER_METER;
+  v2 positionInScreenSpace = ToScreenSpace(gameRenderer, position);
+
+  // see:
+  // - http://members.chello.at/~easyfilter/Bresenham.pdf
+  f32 x = -radiusInPixels, y = 0.0f, err = 2.0f - 2.0f * radiusInPixels; // bottom left to top right
+  do {
+    SDL_FPoint p[] = {
+        {positionInScreenSpace.x - x, positionInScreenSpace.y + y}, /*   I. Quadrant +x +y */
+        {positionInScreenSpace.x - y, positionInScreenSpace.y - x}, /*  II. Quadrant -x +y */
+        {positionInScreenSpace.x + x, positionInScreenSpace.y - y}, /* III. Quadrant -x -y */
+        {positionInScreenSpace.x + y, positionInScreenSpace.y + x}, /*  IV. Quadrant +x -y */
+    };
+    memcpy(points + pointCount, p, ARRAY_COUNT(p) * sizeof(*p));
+    pointCount += ARRAY_COUNT(p);
+    debug_assert(pointCount <= pointMax);
+
+    radiusInPixels = err;
+    if (radiusInPixels <= y)
+      err += ++y * 2.0f + 1.0f;        /* e_xy+e_y < 0 */
+    if (radiusInPixels > x || err > y) /* e_xy+e_x > 0 or no 2nd y-step */
+      err += ++x * 2.0f + 1.0f;        /* -> x-step now */
+    radiusInPixels = err;
+  } while (x < 0.0f);
+#endif
+  debug_assert(pointCount != 0);
+
+  SDL_Renderer *renderer = gameRenderer->renderer;
+  SDL_SetRenderDrawColorFloat(renderer, color.r, color.g, color.b, color.a);
+  SDL_RenderLines(renderer, points, (s32)pointCount);
 }
 
 void

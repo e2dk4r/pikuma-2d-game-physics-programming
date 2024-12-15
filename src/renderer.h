@@ -1,10 +1,12 @@
 #pragma once
 
 #include "math.h"
+#include "memory.h"
 #include <SDL3/SDL.h>
 
 typedef struct {
   SDL_Renderer *renderer;
+  memory_arena memory;
   v2 screenCenter;
 } game_renderer;
 

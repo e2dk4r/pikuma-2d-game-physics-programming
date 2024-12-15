@@ -310,13 +310,18 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
   }
 
   // setup memory
+  const u64 KILOBYTES = 1 << 10;
+  const u64 MEGABYTES = 1 << 20;
+  const u64 PERMANANT_MEMORY_USAGE = 8 * MEGABYTES;
+  const u64 TRANSIENT_MEMORY_USAGE = 32 * MEGABYTES;
+  const u64 RENDERER_MEMORY_USAGE = 1 * MEGABYTES;
+  const u64 STRING_BUILDER_MEMORY_USAGE = 1 * KILOBYTES;
+
   memory_arena memory = {};
   {
-    u64 KILOBYTES = 1 << 10;
-    u64 MEGABYTES = 1 << 20;
-    memory.total = 64 * MEGABYTES;
+    memory.total =
+        PERMANANT_MEMORY_USAGE + TRANSIENT_MEMORY_USAGE + RENDERER_MEMORY_USAGE + STRING_BUILDER_MEMORY_USAGE;
     memory.total += sizeof(sdl_state); // for app state tracking
-    memory.total += 1 * KILOBYTES;     // for string builder
     memory.block = SDL_malloc(memory.total);
     if (memory.block == 0) {
       return SDL_APP_FAILURE;
@@ -327,9 +332,21 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
   sdl_state *state = MemoryArenaPush(&memory, sizeof(*state), 4);
   memset(state, 0, sizeof(*state));
 
+  const s32 windowWidth = 1280;
+  const s32 windowHeight = 720;
+  state->invWindowWidth = 1.0f / (f32)windowWidth;
+  state->invWindowHeight = 1.0f / (f32)windowHeight;
+
+  game_renderer *renderer = &state->renderer;
+  {
+    renderer->memory = MemoryArenaSub(&memory, RENDERER_MEMORY_USAGE);
+    memset(renderer->memory.block, 0, renderer->memory.total);
+
+    renderer->screenCenter = (v2){(f32)windowWidth * 0.5f, (f32)windowHeight * 0.5f};
+  }
+
   { // - string builder
-    u64 KILOBYTES = 1 << 10;
-    memory_arena sbMemory = MemoryArenaSub(&memory, 1 * KILOBYTES);
+    memory_arena sbMemory = MemoryArenaSub(&memory, STRING_BUILDER_MEMORY_USAGE);
     string *stringBuffer = MemoryArenaPush(&sbMemory, sizeof(*stringBuffer), 4);
     *stringBuffer = MemoryArenaPushString(&sbMemory, 32);
     string *outBuffer = MemoryArenaPush(&sbMemory, sizeof(*outBuffer), 4);
@@ -344,31 +361,28 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
   state->executablePath = StringFromZeroTerminated((u8 *)argv[0], 1024);
   GameLibraryReload(&state->lib, state);
 #endif
-  {
-    u64 MEGABYTES = 1 << 20;
+
+  { // setup game memory
     game_memory *gameMemory = &state->memory;
-    gameMemory->permanentStorageSize = 8 * MEGABYTES;
+    gameMemory->permanentStorageSize = PERMANANT_MEMORY_USAGE;
     gameMemory->permanentStorage = MemoryArenaPush(&memory, gameMemory->permanentStorageSize, 4);
     memset(gameMemory->permanentStorage, 0, gameMemory->permanentStorageSize);
 
-    gameMemory->transientStorageSize = 56 * MEGABYTES;
+    gameMemory->transientStorageSize = TRANSIENT_MEMORY_USAGE;
     gameMemory->transientStorage = MemoryArenaPush(&memory, gameMemory->transientStorageSize, 4);
 
     transient_state *transientState = gameMemory->transientStorage;
     transientState->sb = &state->sb;
   }
   debug_assert(memory.used == memory.total && "Warning: you are not using specified memory amount");
-  *appstate = state;
 
   // SDL
+  *appstate = state;
+
   if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_HAPTIC | SDL_INIT_GAMEPAD)) {
     return SDL_APP_FAILURE;
   }
 
-  game_renderer *renderer = &state->renderer;
-  s32 windowWidth = 1280;
-  s32 windowHeight = 720;
-  renderer->screenCenter = (v2){(f32)windowWidth * 0.5f, (f32)windowHeight * 0.5f};
   if (!SDL_CreateWindowAndRenderer("Example Title", windowWidth, windowHeight, 0, &state->window,
                                    &renderer->renderer)) {
     return SDL_APP_FAILURE;
