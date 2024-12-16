@@ -31,8 +31,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     state->effectsEntropy = RandomSeed(213);
     random_series *effectsEntropy = &state->effectsEntropy;
 
-    state->particleCount = 10;
-    state->particles = MemoryArenaPush(worldArena, sizeof(*state->particles) * state->particleCount, 4);
+    state->particleMax = 100;
+    state->particles = MemoryArenaPush(worldArena, sizeof(*state->particles) * state->particleMax, 4);
     for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
       struct particle *particle = state->particles + particleIndex;
       *particle = (struct particle){
@@ -72,10 +72,11 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   string_builder *sb = transientState->sb;
 
   /*****************************************************************
-   * PHYSICS
+   * TIME
    *****************************************************************/
   f32 dt = input->dt;
   debug_assert(dt > 0);
+  state->time += dt;
 #if (0 && IS_BUILD_DEBUG)
   {
     StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("dt: "));
@@ -89,6 +90,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   /*****************************************************************
    * INPUT HANDLING
    *****************************************************************/
+  v2 mousePosition = {};
   v2 inputForce = {};
   for (u32 controllerIndex = 0; controllerIndex < ARRAY_COUNT(input->controllers); controllerIndex++) {
     game_controller *controller = input->controllers + controllerIndex;
@@ -100,9 +102,41 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       debug_assert(v2_length(input) <= 1.0f);
     }
 
+    if (controllerIndex == GAME_CONTROLLER_KEYBOARD_AND_MOUSE_INDEX) {
+      v2 surfaceHalfDim = RectGetHalfDim(RendererGetSurfaceRect(renderer));
+      mousePosition = v2_hadamard((v2){controller->rsX, controller->rsY}, // [-1.0, 1.0]
+                                  surfaceHalfDim);
+
+      static f32 lbPressedAt = 0.0f;
+      if (controller->lb) {
+        if (lbPressedAt == 0.0f && state->particleCount != state->particleMax) {
+          u32 particleIndex = state->particleCount;
+          struct particle *particle = state->particles + particleIndex;
+          particle->position = mousePosition;
+          particle->mass = 1.0f;
+          particle->invMass = 1.0f / particle->mass;
+
+          state->particleCount++;
+
+          lbPressedAt = state->time;
+        }
+
+        // Register click at 100ms intervals.
+        // 1s = 10³ms
+        if ((state->time - lbPressedAt) >= 0.1f) {
+          lbPressedAt = 0.0f;
+        }
+      } else {
+        lbPressedAt = 0.0f;
+      }
+    }
+
     inputForce = v2_add(inputForce, input);
   }
 
+  /*****************************************************************
+   * PHYSICS
+   *****************************************************************/
 #if (1 && IS_BUILD_DEBUG)
   {
     particle *slowestParticle = state->particles + 0;
@@ -159,8 +193,6 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     v2 sumOfForces = {0.0f, 0.0f};
     // apply input force
     sumOfForces = v2_add(sumOfForces, v2_scale(inputForce, 5.0f));
-    // apply wind force
-    sumOfForces = v2_add(sumOfForces, windForce);
     // apply weight force Fw = mg
     v2 weightForce = v2_scale(gravitationForce, particle->mass);
     sumOfForces = v2_add(sumOfForces, weightForce);
@@ -184,6 +216,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
         dragForce = v2_scale(dragDirection, dragMagnitude);
       }
       sumOfForces = v2_add(sumOfForces, dragForce);
+    } else { // if not in liquid
+      // apply wind force
+      sumOfForces = v2_add(sumOfForces, windForce);
     }
 
     // F = ma
@@ -206,6 +241,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
                                        // + vt
                                        v2_scale(particle->velocity, dt)));
 
+    // TODO: Ground collision is broken
     if (particle->position.y <= ground) {
       v2 groundNormal = {0.0f, 1.0f};
 
@@ -215,7 +251,6 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
           v2_sub(particle->velocity, v2_scale(groundNormal, 2.0f * v2_dot(particle->velocity, groundNormal)));
     }
 
-    // TODO: Ground collision is broken
     // Is particle over 10m away from origin?
     if (v2_length_square(particle->position) > Square(10.0f)) {
       random_series *effectsEntropy = &state->effectsEntropy;
@@ -243,6 +278,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
   // liquid
   DrawRect(renderer, state->liquid, COLOR_BLUE_950);
+
+  // mouse
+  DrawCrosshair(renderer, mousePosition, 0.5f, COLOR_RED_500);
 
   // particles
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {

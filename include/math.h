@@ -157,6 +157,12 @@ v2_dot(v2 a, v2 b)
 }
 
 static inline v2
+v2_hadamard(v2 a, v2 b)
+{
+  return (v2){a.x * b.x, a.y * b.y};
+}
+
+static inline v2
 v2_perp(v2 a)
 {
   return (v2){-a.y, a.x};

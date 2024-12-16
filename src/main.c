@@ -22,6 +22,8 @@ typedef struct {
 
 typedef struct {
   SDL_Window *window;
+  f32 invWindowWidth;
+  f32 invWindowHeight;
   game_memory memory;
   game_input inputs[2];
   u32 inputIndex : 1;
@@ -124,7 +126,8 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
 
   case SDL_EVENT_KEY_DOWN:
   case SDL_EVENT_KEY_UP: {
-    game_controller *keyboard = GameControllerGetKeyboard(input->controllers, ARRAY_COUNT(input->controllers));
+    game_controller *keyboardAndMouse =
+        GameControllerGetKeyboardAndMouse(input->controllers, ARRAY_COUNT(input->controllers));
 
 #if (0 && IS_BUILD_DEBUG)
     SDL_KeyboardEvent keyboardEvent = event->key;
@@ -144,18 +147,54 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
       break;
 
     if (keyboardState[SDL_SCANCODE_LEFT] || keyboardState[SDL_SCANCODE_A])
-      keyboard->lsX = -1.0f;
+      keyboardAndMouse->lsX = -1.0f;
     else if (keyboardState[SDL_SCANCODE_RIGHT] || keyboardState[SDL_SCANCODE_D])
-      keyboard->lsX = 1.0f;
+      keyboardAndMouse->lsX = 1.0f;
     else
-      keyboard->lsX = 0.0f;
+      keyboardAndMouse->lsX = 0.0f;
 
     if (keyboardState[SDL_SCANCODE_DOWN] || keyboardState[SDL_SCANCODE_S])
-      keyboard->lsY = -1.0f;
+      keyboardAndMouse->lsY = -1.0f;
     else if (keyboardState[SDL_SCANCODE_UP] || keyboardState[SDL_SCANCODE_W])
-      keyboard->lsY = 1.0f;
+      keyboardAndMouse->lsY = 1.0f;
     else
-      keyboard->lsY = 0.0f;
+      keyboardAndMouse->lsY = 0.0f;
+  } break;
+
+  case SDL_EVENT_MOUSE_BUTTON_DOWN:
+  case SDL_EVENT_MOUSE_BUTTON_UP: {
+    game_controller *keyboardAndMouse =
+        GameControllerGetKeyboardAndMouse(input->controllers, ARRAY_COUNT(input->controllers));
+    SDL_MouseButtonEvent buttonEvent = event->button;
+    u64 timestamp = buttonEvent.timestamp;
+    b8 isPressed = buttonEvent.down;
+
+    if (buttonEvent.button == SDL_BUTTON_LEFT)
+      keyboardAndMouse->lb = isPressed;
+    else if (buttonEvent.button == SDL_BUTTON_RIGHT)
+      keyboardAndMouse->rb = isPressed;
+  } break;
+
+  case SDL_EVENT_MOUSE_MOTION: {
+    game_controller *keyboardAndMouse =
+        GameControllerGetKeyboardAndMouse(input->controllers, ARRAY_COUNT(input->controllers));
+    SDL_MouseMotionEvent motionEvent = event->motion;
+
+    keyboardAndMouse->rsX = motionEvent.x * state->invWindowWidth * 2.0f - 1.0f;
+    keyboardAndMouse->rsY = motionEvent.y * state->invWindowHeight * 2.0f - 1.0f;
+    keyboardAndMouse->rsY *= -1;
+
+#if (0 && IS_BUILD_DEBUG)
+    SDL_KeyboardEvent keyboardEvent = event->key;
+    string_builder *sb = &state->sb;
+    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("mouse x "));
+    StringBuilderAppendF32(sb, mouseEvent.x, 2);
+    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" y "));
+    StringBuilderAppendF32(sb, mouseEvent.y, 2);
+    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+    string s = StringBuilderFlush(sb);
+    write(STDOUT_FILENO, s.value, s.length);
+#endif
   } break;
 
   // when gamepad is added, open gamepad

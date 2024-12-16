@@ -142,6 +142,22 @@ DrawRect(game_renderer *gameRenderer, rect rect, v4 color)
   SDL_RenderFillRect(renderer, &sdlRect);
 }
 
+void
+DrawCrosshair(game_renderer *gameRenderer, v2 position, f32 dim, v4 color)
+{
+  f32 dimInPixels = dim * 0.5f * PIXELS_PER_METER;
+  f32 radiusInPixels = dimInPixels * 0.5f;
+  v2 center = ToScreenSpace(gameRenderer, position);
+
+  SDL_FRect rects[] = {
+      {.x = center.x - radiusInPixels, .w = dimInPixels, .y = center.y - 0.5f, .h = 1.0f},
+      {.x = center.x - 0.5f, .w = 1.0f, .y = center.y - radiusInPixels, .h = dimInPixels},
+  };
+  SDL_Renderer *renderer = gameRenderer->renderer;
+  SDL_SetRenderDrawColorFloat(renderer, color.r, color.g, color.b, color.a);
+  SDL_RenderFillRects(renderer, rects, ARRAY_COUNT(rects));
+}
+
 rect
 RendererGetSurfaceRect(game_renderer *renderer)
 {

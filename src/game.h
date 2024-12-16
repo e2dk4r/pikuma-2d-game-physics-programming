@@ -28,8 +28,11 @@ typedef struct {
   random_series effectsEntropy;
   particle *particles;
   u32 particleCount;
+  u32 particleMax;
 
   rect liquid;
+
+  f32 time; // unit: sec
 } game_state;
 
 typedef struct {
