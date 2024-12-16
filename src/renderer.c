@@ -89,6 +89,11 @@ DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color)
 
   // see:
   // - http://members.chello.at/~easyfilter/Bresenham.pdf
+  // - https://www.youtube.com/watch?v=CceepU1vIKo "NoBS Code - Bresenham's Line Algorithm - Demystified Step by Step"
+  // - https://www.youtube.com/watch?v=y_SPO_b-WXk "UofM Introduction to Computer Graphics - COMP 3490 - (Unit 3)
+  // Drawing Primitives 2: Bresenham's Line Algorithm"
+  // - https://www.youtube.com/watch?v=hpiILbMkF9w "NoBS Code - The Midpoint Circle Algorithm Explained Step by Step"
+
   f32 x = -radiusInPixels, y = 0.0f, err = 2.0f - 2.0f * radiusInPixels; // bottom left to top right
   do {
     SDL_FPoint p[] = {
