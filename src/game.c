@@ -211,7 +211,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
         // We can simplify this formul by replacing all constant to:
         //   F = k ||v||² (-normalized(v))
         v2 dragDirection = v2_neg(v2_normalize(particle->velocity));
-        f32 k = 0.05f;
+        f32 k = 0.03f;
         f32 dragMagnitude = k * v2_length_square(particle->velocity);
         dragForce = v2_scale(dragDirection, dragMagnitude);
       }
