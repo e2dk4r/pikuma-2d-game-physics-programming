@@ -394,15 +394,6 @@ if [ $IsBuildEnabled -eq 1 ]; then
     StartTimer
     "$cc" $cflags $ldflags $inc -o "$output" $src $lib
     [ $? -eq 0 ] && echo "$OUTPUT_NAME compiled in $(StopTimer) seconds."
-
-    cat <<EOF
-NOTE:
-  To run executable, do not forget to include SDL3 library to search
-    export 'LD_LIBRARY_PATH=$LIBSDL_DIR-install/lib64'
-
-  Do not set 'LD_LIBRARY_PATH=./', this causes strange errors.
-    e.g. Recieving segfault when recompiling. SIGSEGV or SIGBUS
-EOF
   fi
 fi
 
