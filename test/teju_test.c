@@ -17,6 +17,7 @@ enum teju_test_error {
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_1_00,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_2_50,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_2_55,
+  TEJU_TEST_ERROR_FORMATF32_EXPECTED_0_00,
 
   // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
   // For the default exitcode testing protocol, the GNU standard approach in
@@ -146,6 +147,13 @@ main(void)
     expected = STRING_FROM_ZERO_TERMINATED("-2.55");
     if (!IsStringEqual(&value, &expected)) {
       errorCode = TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_2_55;
+      goto end;
+    }
+
+    value = FormatF32(&stringBuffer, 3.76991844e-25f, 2);
+    expected = STRING_FROM_ZERO_TERMINATED("0.00");
+    if (!IsStringEqual(&value, &expected)) {
+      errorCode = TEJU_TEST_ERROR_FORMATF32_EXPECTED_0_00;
       goto end;
     }
   }

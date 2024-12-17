@@ -3,6 +3,33 @@
 #include "assert.h"
 #include "type.h"
 
+// used for calculating digit count of value
+//   digitCount = 1
+//   while (digitCount < ARRAY_COUNT(array) && value >= array[digitCount])
+//     digitCount++
+comptime u64 POWERS_OF_10[] = {
+    1ull,                    // 10^0
+    10ull,                   // 10^1
+    100ull,                  // 10^2
+    1000ull,                 // 10^3
+    10000ull,                // 10^4
+    100000ull,               // 10^5
+    1000000ull,              // 10^6
+    10000000ull,             // 10^7
+    100000000ull,            // 10^8
+    1000000000ull,           // 10^9
+    10000000000ull,          // 10^10
+    100000000000ull,         // 10^11
+    1000000000000ull,        // 10^12
+    10000000000000ull,       // 10^13
+    100000000000000ull,      // 10^14
+    1000000000000000ull,     // 10^15
+    10000000000000000ull,    // 10^16
+    100000000000000000ull,   // 10^17
+    1000000000000000000ull,  // 10^18
+    10000000000000000000ull, // 10^19
+};
+
 static inline u32
 Clamp(u32 value, u32 min, u32 max)
 {

@@ -912,17 +912,25 @@ teju_float_to_decimal(f32 const value)
   return teju_ieee32_no_uint128(teju_binary);
 }
 
+/*
+ * string buffer must at least able to hold 3 bytes.
+ * fractionCount [1,9]
+ */
 static inline struct string
 FormatF32(struct string *stringBuffer, f32 value, u32 fractionCount)
 {
+  debug_assert(fractionCount >= 1 && fractionCount <= 9);
+
+  /*****************************************************************
+   * INITIAL BUFFER CAPACITY CHECK
+   *****************************************************************/
   struct string result = {};
-  if (!stringBuffer || stringBuffer->length == 0)
+  if (!stringBuffer
+      // 1 for integer, 1 for point, plus fraction count is minimal
+      || stringBuffer->length < 2 + fractionCount)
     return result;
 
-  // TODO: PERFORMANCE: Is writing mantissa then adding decimal point more
-  // performant?
-
-  // edge case
+  // EDGE CASE: if value is 0.0f
   if (value == 0) {
     result.value = stringBuffer->value;
     result.length = 2 + fractionCount;
@@ -933,76 +941,128 @@ FormatF32(struct string *stringBuffer, f32 value, u32 fractionCount)
     return result;
   }
 
-  // 0.99 => mantissa 99 exponent -2
-  // 9.05 => mantissa 905 exponent -2
+  /*****************************************************************
+   * CALCULATING LENGTH OF FLOAT
+   *****************************************************************/
+  // PERFORMANCE
+  // TODO: Q: Is writing mantissa then adding decimal point more performant?
+  // A: ?
+
+  // Convert float to mantissa/exponent/sign
   teju32_fields_t fields = teju_float_to_decimal(value);
   b8 isNegative = fields.sign;
   u64 mantissa = fields.mantissa;
   s32 exponent = fields.exponent;
 
-  u32 integerDivider = 1;
-  for (u32 index = 0; index < Absolute(exponent); index++)
-    integerDivider *= 10;
+  // Determine mantissa digit count
+  u32 mantissaDigitCount = 1;
+  while (mantissaDigitCount < ARRAY_COUNT(POWERS_OF_10) && mantissa >= POWERS_OF_10[mantissaDigitCount])
+    mantissaDigitCount++;
 
-  u64 integer = mantissa / integerDivider;
-  u64 fraction = mantissa - (integer * integerDivider);
+  // Calculate positions for point and zero padding
+  u32 zeroBeforeCount = 0, zeroAfterCount = 0;
+  u32 pointIndex;
+  pointIndex = mantissaDigitCount + (u32)(exponent);
 
-  // 1 - sign
-  struct string stringBufferForInteger = {
-      .value = stringBuffer->value,
-      .length = stringBuffer->length,
-  };
+  if (exponent < 0) {
+    u32 absExponent = (u32)-exponent;
+    if (absExponent >= mantissaDigitCount)
+      zeroBeforeCount = absExponent - 1;
+
+    if (absExponent >= mantissaDigitCount)
+      pointIndex = 1;
+  } else {
+    zeroAfterCount = (u32)exponent;
+  }
+
+  pointIndex += isNegative;
+  debug_assert(zeroBeforeCount < 45 && "overflow");
+  debug_assert(zeroAfterCount < 45 && "overflow");
+  debug_assert(pointIndex > isNegative && "must be 1 min" && pointIndex < 45 && "overflow");
+
+  // Adjust for fraction count
+  u32 lengthLimit = zeroBeforeCount + mantissaDigitCount + zeroAfterCount + 1; // 1 is for point
+  s32 fractionDifference = (s32)(
+      // fraction count wanted
+      fractionCount
+      // minus the fraction count interpret from mantissa
+      - (lengthLimit - (pointIndex + 1)));
+  if (fractionDifference < 0) {
+    lengthLimit += (u32)fractionDifference;
+  } else if (fractionDifference > 0) {
+    zeroAfterCount += (u32)fractionDifference;
+    lengthLimit += (u32)fractionDifference;
+  }
+  // else perfect match
+
+  /*****************************************************************
+   * BUFFER CAPACITY CHECK
+   *****************************************************************/
+  // Check final buffer capacity
+  if (stringBuffer->length < lengthLimit)
+    return result;
+
+  /*****************************************************************
+   * CONVERTING VALUE TO STRING
+   *****************************************************************/
+  // Construct the formatted string
+  u32 index = 0;
+
+  // Add sign if negative
   if (isNegative) {
-    *stringBufferForInteger.value++ = '-';
-    stringBufferForInteger.length--;
+    stringBuffer->value[index] = '-';
+    index++;
   }
 
-  // 2 - integer
-  struct string integerString = FormatU64(&stringBufferForInteger, integer);
-  if (integerString.length == 0)
-    return result;
-
-  // 3 - point
-  stringBufferForInteger.value[integerString.length] = '.';
-
-  // 4 - fraction
-  struct string stringBufferForFraction = {
-      .value = stringBufferForInteger.value + integerString.length + 1,
-      .length = stringBufferForInteger.length - (integerString.length + 1),
-  };
-
   /**
-   * 0.05f
-   *   └── put zeros before putting fraction value
+   * Add leading zeros
+   * 0.99f
+   * └── put zero to integer's place
    */
-  for (u32 divider = integerDivider / 10; divider != 0 && fraction / divider == 0; divider /= 10) {
-    *stringBufferForFraction.value++ = '0';
-    stringBufferForFraction.length--;
+  for (u32 zeroIndex = 0; zeroIndex < zeroBeforeCount && index < lengthLimit; zeroIndex++) {
+    // skip point
+    if (index == pointIndex)
+      index++;
+
+    stringBuffer->value[index] = '0';
+    index++;
   }
 
-  /* write fraction */
-  // TODO: PERFORMANCE: Print only wanted fraction
-  //   value: 0.99  fractionCount: 1 => 9
-  //   value: 0.999 fractionCount: 2 => 99
+  // Add mantissa digits
+  while (mantissaDigitCount > 0 && index < lengthLimit) {
+    // skip point
+    if (index == pointIndex)
+      index++;
 
-  struct string fractionString = FormatU64(&stringBufferForFraction, fraction);
-  if (fractionString.length == 0)
-    return result;
+    u64 power = POWERS_OF_10[mantissaDigitCount - 1];
+    u64 digit = mantissa / power;
+
+    stringBuffer->value[index] = (u8)digit + '0';
+
+    mantissa -= digit * power;
+    mantissaDigitCount--;
+    index++;
+  }
 
   /**
+   * Add trailing zeros
    * 0.50f
    *    └── put zeros after putting fraction value
    */
-  while (fractionString.length < fractionCount) {
-    fractionString.value[fractionString.length] = '0';
-    fractionString.length++;
+  for (u32 zeroIndex = 0; zeroIndex < zeroAfterCount && index < lengthLimit; zeroIndex++) {
+    // skip point
+    if (index == pointIndex)
+      index++;
+
+    stringBuffer->value[index] = '0';
+    index++;
   }
 
-  // - Limit output to string
-  fractionString.length = fractionCount;
+  // Add decimal point
+  stringBuffer->value[pointIndex] = '.';
 
   // completed
   result.value = stringBuffer->value;
-  result.length = isNegative + integerString.length + 1 + fractionString.length;
+  result.length = index;
   return result;
 }

@@ -237,13 +237,8 @@ FormatU64(struct string *stringBuffer, u64 value)
   if (!stringBuffer || stringBuffer->length == 0)
     return result;
 
-  // max u64: 18446744073709551615
-  static const u64 powersOf10[20] = {
-      1e00L, 1e01L, 1e02L, 1e03L, 1e04L, 1e05L, 1e06L, 1e07L, 1e08L, 1e09L,
-      1e10L, 1e11L, 1e12L, 1e13L, 1e14L, 1e15L, 1e16L, 1e17L, 1e18L, 1e19L,
-  };
   u64 countOfDigits = 1;
-  while (countOfDigits < 20 && value >= powersOf10[countOfDigits])
+  while (countOfDigits < ARRAY_COUNT(POWERS_OF_10) && value >= POWERS_OF_10[countOfDigits])
     countOfDigits++;
 
   if (countOfDigits > stringBuffer->length)
@@ -251,7 +246,7 @@ FormatU64(struct string *stringBuffer, u64 value)
 
   u64 index = 0;
   while (countOfDigits > 0) {
-    u64 power = powersOf10[countOfDigits - 1];
+    u64 power = POWERS_OF_10[countOfDigits - 1];
     u64 digit = value / power;
 
     // turn digit into character
@@ -298,7 +293,7 @@ FormatF32Slow(struct string *stringBuffer, f32 value, u32 fractionCount)
   debug_assert(fractionCount >= 1 && fractionCount <= 8);
 
   struct string result = {};
-  if (!stringBuffer || stringBuffer->length <= 3)
+  if (!stringBuffer || stringBuffer->length < 3)
     return result;
 
   // 1 - convert integer part to string
