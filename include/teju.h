@@ -914,12 +914,13 @@ teju_float_to_decimal(f32 const value)
 
 /*
  * string buffer must at least able to hold 3 bytes.
- * fractionCount [1,9]
+ * fractionCount [1,51]
+ *   minimum value for f32 requires 51 digits after decimal point
  */
 static inline struct string
 FormatF32(struct string *stringBuffer, f32 value, u32 fractionCount)
 {
-  debug_assert(fractionCount >= 1 && fractionCount <= 9);
+  debug_assert(fractionCount >= 1 && fractionCount <= 51);
 
   /*****************************************************************
    * INITIAL BUFFER CAPACITY CHECK

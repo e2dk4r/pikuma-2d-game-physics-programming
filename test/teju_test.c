@@ -18,6 +18,9 @@ enum teju_test_error {
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_2_50,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_2_55,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_0_00,
+  TEJU_TEST_ERROR_FORMATF32_EXPECTED_F32_MAX,
+  TEJU_TEST_ERROR_FORMATF32_EXPECTED_F32_MIN,
+  TEJU_TEST_ERROR_FORMATF32_EXPECTED_F32_LOWEST,
 
   // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
   // For the default exitcode testing protocol, the GNU standard approach in
@@ -47,7 +50,7 @@ main(void)
 
   // FormatF32(struct string *stringBuffer, f32 value, u32 fractionCount)
   {
-    u8 buf[20];
+    u8 buf[64];
     struct string stringBuffer = {.value = buf, .length = sizeof(buf)};
     struct string expected;
     struct string value;
@@ -154,6 +157,27 @@ main(void)
     expected = STRING_FROM_ZERO_TERMINATED("0.00");
     if (!IsStringEqual(&value, &expected)) {
       errorCode = TEJU_TEST_ERROR_FORMATF32_EXPECTED_0_00;
+      goto end;
+    }
+
+    value = FormatF32(&stringBuffer, F32_MAX, 1);
+    expected = STRING_FROM_ZERO_TERMINATED("340282350000000000000000000000000000000.0");
+    if (!IsStringEqual(&value, &expected)) {
+      errorCode = TEJU_TEST_ERROR_FORMATF32_EXPECTED_F32_MAX;
+      goto end;
+    }
+
+    value = FormatF32(&stringBuffer, F32_MIN, 51);
+    expected = STRING_FROM_ZERO_TERMINATED("0.000000000000000000000000000000000000000000011754944");
+    if (!IsStringEqual(&value, &expected)) {
+      errorCode = TEJU_TEST_ERROR_FORMATF32_EXPECTED_F32_MIN;
+      goto end;
+    }
+
+    value = FormatF32(&stringBuffer, F32_LOWEST, 1);
+    expected = STRING_FROM_ZERO_TERMINATED("-340282350000000000000000000000000000000.0");
+    if (!IsStringEqual(&value, &expected)) {
+      errorCode = TEJU_TEST_ERROR_FORMATF32_EXPECTED_F32_LOWEST;
       goto end;
     }
   }
