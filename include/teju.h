@@ -1015,6 +1015,9 @@ FormatF32(struct string *stringBuffer, f32 value, u32 fractionCount)
     index++;
   }
 
+  // Add decimal point
+  stringBuffer->value[pointIndex] = '.';
+
   /**
    * Add leading zeros
    * 0.99f
@@ -1058,9 +1061,6 @@ FormatF32(struct string *stringBuffer, f32 value, u32 fractionCount)
     stringBuffer->value[index] = '0';
     index++;
   }
-
-  // Add decimal point
-  stringBuffer->value[pointIndex] = '.';
 
   // completed
   result.value = stringBuffer->value;
