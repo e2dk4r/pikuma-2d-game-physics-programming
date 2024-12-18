@@ -8,6 +8,16 @@ enum math_test_error {
   MATH_TEST_ERROR_CLAMP_EXPECTED_MAX,
   MATH_TEST_ERROR_IS_POWER_OF_TWO_EXPECTED_TRUE,
   MATH_TEST_ERROR_IS_POWER_OF_TWO_EXPECTED_FALSE,
+  MATH_TEST_ERROR_V2_ADD,
+  MATH_TEST_ERROR_V2_SUB,
+  MATH_TEST_ERROR_V2_SCALE,
+  MATH_TEST_ERROR_V2_DOT,
+  MATH_TEST_ERROR_V2_HADAMARD,
+  MATH_TEST_ERROR_V2_PERP,
+  MATH_TEST_ERROR_V2_LENGTH_SQUARE,
+  MATH_TEST_ERROR_V2_LENGTH,
+  MATH_TEST_ERROR_V2_NORMALIZE,
+  MATH_TEST_ERROR_V2_NEG,
   MATH_TEST_ERROR_IS_POINT_INSIDE_RECT_EXPECTED_TRUE,
   MATH_TEST_ERROR_IS_POINT_INSIDE_RECT_EXPECTED_FALSE,
 
@@ -83,6 +93,121 @@ main(void)
     value = IsPowerOfTwo(input);
     if (value != expected) {
       errorCode = MATH_TEST_ERROR_IS_POWER_OF_TWO_EXPECTED_FALSE;
+      goto end;
+    }
+  }
+
+  // v2_add(v2 a, v2 b)
+  {
+    struct v2 a = {3.0f, 4.0f};
+    struct v2 b = {9.0f, 12.0f};
+    struct v2 expected = {12.0f, 16.0f};
+    struct v2 value = v2_add(a, b);
+    if (value.x != expected.x || value.y != expected.y) {
+      errorCode = MATH_TEST_ERROR_V2_ADD;
+      goto end;
+    }
+  }
+
+  // v2_sub(v2 a, v2 b)
+  {
+    struct v2 a = {9.0f, 12.0f};
+    struct v2 b = {3.0f, 4.0f};
+    struct v2 expected = {6.0f, 8.0f};
+    struct v2 value = v2_sub(a, b);
+    if (value.x != expected.x || value.y != expected.y) {
+      errorCode = MATH_TEST_ERROR_V2_SUB;
+      goto end;
+    }
+  }
+
+  // v2_scale(v2 a, f32 scaler)
+  {
+    struct v2 a = {3.0f, 4.0f};
+    f32 scaler = 5.0f;
+    struct v2 expected = {15.0f, 20.0f};
+    struct v2 value = v2_scale(a, scaler);
+    if (value.x != expected.x || value.y != expected.y) {
+      errorCode = MATH_TEST_ERROR_V2_DOT;
+      goto end;
+    }
+  }
+
+  // v2_dot(v2 a, v2 b)
+  {
+    struct v2 a = {3.0f, 4.0f};
+    struct v2 b = {9.0f, 12.0f};
+    f32 expected = 3.0f * 9.0f + 4.0f * 12.0f;
+    f32 value = v2_dot(a, b);
+    if (value != expected) {
+      errorCode = MATH_TEST_ERROR_V2_DOT;
+      goto end;
+    }
+  }
+
+  // v2_hadamard(v2 a, v2 b)
+  {
+    struct v2 a = {3.0f, 4.0f};
+    struct v2 b = {9.0f, 12.0f};
+    struct v2 expected = {27.0f, 48.0f};
+    struct v2 value = v2_hadamard(a, b);
+    if (value.x != expected.x || value.y != expected.y) {
+      errorCode = MATH_TEST_ERROR_V2_HADAMARD;
+      goto end;
+    }
+  }
+
+  // v2_perp(v2 a)
+  {
+    struct v2 a = {1.0f, 2.0f};
+    struct v2 expected = {-2.0f, 1.0f};
+    struct v2 value = v2_perp(a);
+    if (value.x != expected.x || value.y != expected.y) {
+      errorCode = MATH_TEST_ERROR_V2_PERP;
+      goto end;
+    }
+  }
+
+  // v2_length_square(v2 a)
+  {
+    struct v2 a = {3.0f, 4.0f};
+    f32 expected = 5.0f * 5.0f;
+    f32 value = v2_length_square(a);
+    if (value != expected) {
+      errorCode = MATH_TEST_ERROR_V2_LENGTH_SQUARE;
+      goto end;
+    }
+  }
+
+  // v2_length(v2 a)
+  {
+    struct v2 a = {3.0f, 4.0f};
+    f32 expected = 5.0f;
+    f32 value = v2_length(a);
+    if (value != expected) {
+      errorCode = MATH_TEST_ERROR_V2_LENGTH;
+      goto end;
+    }
+  }
+
+  // v2_normalize(v2 a)
+  {
+    struct v2 a = {3.0f, 4.0f};
+    struct v2 expected = {3.0f / 5.0f, 4.0f / 5.0f};
+    struct v2 value = v2_normalize(a);
+    if (value.x != expected.x || value.y != expected.y) {
+      errorCode = MATH_TEST_ERROR_V2_NORMALIZE;
+      goto end;
+    }
+  }
+
+  // v2_neg(v2 a)
+  {
+    struct v2 a = {3.0f, 4.0f};
+    struct v2 expected = {-3.0f, -4.0f};
+    struct v2 value = v2_neg(a);
+    if (value.x != expected.x || value.y != expected.y) {
+      errorCode = MATH_TEST_ERROR_V2_NEG;
       goto end;
     }
   }

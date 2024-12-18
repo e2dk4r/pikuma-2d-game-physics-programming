@@ -213,7 +213,7 @@ v2_normalize(v2 a)
   f32 length = v2_length(a);
   if (length == 0)
     return (v2){0, 0};
-  return v2_scale(a, length);
+  return v2_scale(a, 1.0f / length);
 }
 
 static inline v2
