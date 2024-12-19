@@ -31,7 +31,18 @@ comptime u64 POWERS_OF_10[] = {
 };
 
 static inline u32
-Clamp(u32 value, u32 min, u32 max)
+ClampU32(u32 value, u32 min, u32 max)
+{
+  debug_assert(min < max);
+  if (value < min)
+    return min;
+  else if (value > max)
+    return max;
+  return value;
+}
+
+static inline f32
+Clamp(f32 value, f32 min, f32 max)
 {
   debug_assert(min < max);
   if (value < min)

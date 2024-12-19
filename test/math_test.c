@@ -44,7 +44,7 @@ main(void)
   {
   }
 
-  // Clamp(u32 value, u32 min, u32 max)
+  // ClampU32(u32 value, u32 min, u32 max)
   {
     u32 min, max, input, expected, value;
 
@@ -52,7 +52,7 @@ main(void)
     max = 5;
     input = 4;
     expected = input;
-    value = Clamp(input, min, max);
+    value = ClampU32(input, min, max);
     if (value != expected) {
       errorCode = MATH_TEST_ERROR_CLAMP_EXPECTED_INPUT;
       goto end;
@@ -60,7 +60,7 @@ main(void)
 
     input = min - 1;
     expected = min;
-    value = Clamp(input, min, max);
+    value = ClampU32(input, min, max);
     if (value != expected) {
       errorCode = MATH_TEST_ERROR_CLAMP_EXPECTED_MIN;
       goto end;
@@ -68,7 +68,7 @@ main(void)
 
     input = max + 1;
     expected = max;
-    value = Clamp(input, min, max);
+    value = ClampU32(input, min, max);
     if (value != expected) {
       errorCode = MATH_TEST_ERROR_CLAMP_EXPECTED_MAX;
       goto end;
