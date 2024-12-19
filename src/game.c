@@ -31,8 +31,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     state->effectsEntropy = RandomSeed(213);
     random_series *effectsEntropy = &state->effectsEntropy;
 
-    state->particleMax = 1;
-    state->particleCount = 1;
+    state->particleMax = 2;
+    state->particleCount = 2;
     state->particles = MemoryArenaPush(worldArena, sizeof(*state->particles) * state->particleMax, 4);
     for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
       struct particle *particle = state->particles + particleIndex;
@@ -42,9 +42,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
                   .x = RandomBetween(effectsEntropy, -3.0f, 3.0f),
                   .y = RandomBetween(effectsEntropy, 3.0f, 5.0f),
               },
-          .mass = RandomBetween(effectsEntropy, 1.0f, 5.0f),
+          .mass = RandomBetween(effectsEntropy, 0.1f, 8.0f),
       };
-      particle->invMass = 1.0f / particle->mass;
+      particle->mass = RandomBetween(effectsEntropy, 0.1f, 8.0f), particle->invMass = 1.0f / particle->mass;
     }
 
     rect surfaceRect = RendererGetSurfaceRect(renderer);
@@ -93,6 +93,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
    *****************************************************************/
   global b8 impulse = 0;
   struct particle *firstParticle = state->particles + 0;
+  struct particle *secondParticle = state->particles + 1;
   v2 mousePosition = {};
   v2 inputForce = {};
   for (u32 controllerIndex = 0; controllerIndex < ARRAY_COUNT(input->controllers); controllerIndex++) {
@@ -213,13 +214,25 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
   f32 ground = -5.8f;
 
+  firstParticle->mass = 20;
+  secondParticle->mass = 1;
+#if (0 && IS_BUILD_DEBUG)
+  {
+    StringBuilderAppendF32(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+    string string = StringBuilderFlush(sb);
+    write(STDOUT_FILENO, string.value, string.length);
+  }
+#endif
+
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
     struct particle *particle = state->particles + particleIndex;
 
     v2 sumOfForces = {0.0f, 0.0f};
 
     // apply input force
-    sumOfForces = v2_add(sumOfForces, v2_scale(inputForce, 15.0f));
+    if (particle == firstParticle)
+      sumOfForces = v2_add(sumOfForces, v2_scale(inputForce, 15.0f));
 
 #if 0
     // apply weight force Fw = mg
@@ -235,7 +248,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     sumOfForces = v2_add(sumOfForces, windForce);
 #endif
 
-#if 1
+#if 0
     // apply friction force
     {
       //   F = μ ||Fn|| (-normalized(v))
@@ -250,6 +263,29 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       f32 frictionMagnitude = 10.0f;
       v2 frictionForce = v2_scale(frictionDirection, frictionMagnitude);
       sumOfForces = v2_add(sumOfForces, frictionForce);
+    }
+#endif
+
+#if 1
+    {
+      // apply gravitational attraction force
+      //   F = G ((m₁ + m₂) / ||d||²) normalized(d)
+      //   where G is universal gravitational constant
+      //         d is distance or attraction force
+
+      v2 distance = v2_sub(secondParticle->position, firstParticle->position);
+      f32 distanceSquared = v2_length_square(distance);
+
+      f32 G = 6.67428e-11f; // unit m³/(kg sec²)
+      G = .5;
+      f32 attractionMagnitude = G * (firstParticle->mass + secondParticle->mass) / distanceSquared;
+      v2 attractionDirection = v2_normalize(distance);
+      v2 attractionForce = v2_scale(attractionDirection, attractionMagnitude);
+
+      if (particle == firstParticle)
+        sumOfForces = v2_add(sumOfForces, attractionForce);
+      else if (particle == secondParticle)
+        sumOfForces = v2_add(sumOfForces, v2_neg(attractionForce));
     }
 #endif
 
