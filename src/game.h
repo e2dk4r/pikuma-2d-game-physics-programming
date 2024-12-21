@@ -8,17 +8,10 @@
 #include "string_builder.h"
 #endif
 
+#include "physics.h"
 #include "platform.h"
 #include "random.h"
 #include "renderer.h"
-
-typedef struct particle {
-  v2 position;     // unit: m
-  v2 velocity;     // unit: m/s
-  v2 acceleration; // unit: m/s²
-  f32 mass;        // unit: kg
-  f32 invMass;     // computed from 1/mass
-} particle;
 
 typedef struct {
   b8 isInitialized : 1;
@@ -31,6 +24,7 @@ typedef struct {
   u32 particleMax;
 
   rect liquid;
+  v2 springAnchorPosition;
 
   f32 time; // unit: sec
 } game_state;

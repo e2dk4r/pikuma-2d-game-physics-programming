@@ -4,6 +4,7 @@
 #include "renderer.h"
 #include "string_builder.h"
 
+#include "physics.c"
 #include "random.c"
 #include "renderer.c"
 
@@ -32,7 +33,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     random_series *effectsEntropy = &state->effectsEntropy;
 
     state->particleMax = 2;
-    state->particleCount = 2;
+    state->particleCount = 1;
     state->particles = MemoryArenaPush(worldArena, sizeof(*state->particles) * state->particleMax, 4);
     for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
       struct particle *particle = state->particles + particleIndex;
@@ -53,6 +54,16 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
         .min = surfaceRect.min,
         .max = {surfaceRect.max.x, 0.0f},
     };
+
+#if 1
+    {
+      state->springAnchorPosition = (v2){0.0f, 2.0f};
+      particle *firstParticle = state->particles + 0;
+      firstParticle->position = (v2){0.0f, 0.0f};
+      firstParticle->mass = 3.0f;
+      firstParticle->invMass = 1.0f / firstParticle->mass;
+    }
+#endif
 
     state->isInitialized = 1;
   }
@@ -215,11 +226,6 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
   f32 ground = -5.8f;
 
-  firstParticle->mass = 1.0f;
-  firstParticle->invMass = 1.0f / firstParticle->mass;
-  secondParticle->mass = 5.0f;
-  secondParticle->invMass = 1.0f / secondParticle->mass;
-
 #if (0 && IS_BUILD_DEBUG)
   {
     StringBuilderAppendF32(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
@@ -232,95 +238,32 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
     struct particle *particle = state->particles + particleIndex;
 
+    /*
+     * - Apply forces
+     */
     v2 sumOfForces = {0.0f, 0.0f};
 
     // apply input force
-    if (particle == firstParticle)
-      sumOfForces = v2_add(sumOfForces, v2_scale(inputForce, 15.0f));
+    sumOfForces = v2_add(sumOfForces, v2_scale(inputForce, 15.0f));
 
-#if 0
-    // apply weight force Fw = mg
-    // see: https://en.wikipedia.org/wiki/Gravity_of_Earth
-    v2 gravitationForce = {0.0f, -9.80665f};
-    v2 weightForce = v2_scale(gravitationForce, particle->mass);
+    // apply weight force
+    v2 weightForce = GenerateWeightForce(particle);
     sumOfForces = v2_add(sumOfForces, weightForce);
-#endif
 
-#if 0
-    // apply wind force
-    v2 windForce = {2.0f, 0.0f};
-    sumOfForces = v2_add(sumOfForces, windForce);
-#endif
+    // apply drag force
+    v2 dragForce = GenerateDragForce(particle, 0.001f);
+    sumOfForces = v2_add(sumOfForces, dragForce);
 
-#if 1
-    // apply friction force
-    {
-      //   F = μ ||Fn|| (-normalized(v))
-      //   where μ is coefficent of friction
-      //         Fn is normal force applied by surface
-      //         v is velocity
-      // We can simplfy this equation to
-      //   F = k (-v)
-      //   where k is magnitude of friction
-
-      v2 frictionDirection = v2_neg(v2_normalize(particle->velocity));
-      f32 frictionMagnitude = 0.2f;
-      v2 frictionForce = v2_scale(frictionDirection, frictionMagnitude);
-      sumOfForces = v2_add(sumOfForces, frictionForce);
+    // apply spring force
+    if (particle == firstParticle) {
+      f32 restLength = 2.0f;
+      v2 springForce = GenerateSpringForce(particle, state->springAnchorPosition, restLength, 100.0f);
+      sumOfForces = v2_add(sumOfForces, springForce);
     }
-#endif
 
-#if 1
-    {
-      // apply gravitational attraction force
-      //   F = G ((m₁ m₂) / ||d||²) normalized(d)
-      //   where G is universal gravitational constant
-      //         d is distance or attraction force
-
-      v2 distance = v2_sub(secondParticle->position, firstParticle->position);
-      f32 distanceSquared = v2_length_square(distance);
-
-      // Avoid division by zero or excessively large forces when particles are too close
-      distanceSquared = Clamp(distanceSquared, 0.1f, 8.0f);
-
-      // Universal gravitational constant. unit: m³ / (kg * sec²)
-      f32 G = 6.67418478e-11f;
-      G = 0.25f;
-
-      f32 attractionMagnitude = G * (firstParticle->mass * secondParticle->mass) / distanceSquared;
-      v2 attractionDirection = v2_normalize(distance);
-      v2 attractionForce = v2_scale(attractionDirection, attractionMagnitude);
-
-      if (particle == firstParticle)
-        sumOfForces = v2_add(sumOfForces, attractionForce);
-      else if (particle == secondParticle)
-        sumOfForces = v2_add(sumOfForces, v2_neg(attractionForce));
-    }
-#endif
-
-#if 0
-    // apply drag force when we are inside the liquid
-    if (IsPointInsideRect(particle->position, state->liquid)) {
-      v2 dragForce = {0.0f, 0.0f};
-      if (v2_length_square(particle->velocity) > 0.0f) {
-        // Drag force law is:
-        //   F = ½ ρ K A ||v||² (-normalized(v))
-        //   where ρ is fluid density
-        //         K is coefficient of drag
-        //         A is cross-sectional area
-        //         v is velocity
-        //         ||v||² is velocity's magnitude squared
-        // We can simplify this formul by replacing all constant to:
-        //   F = k ||v||² (-normalized(v))
-        v2 dragDirection = v2_neg(v2_normalize(particle->velocity));
-        f32 k = 0.03f;
-        f32 dragMagnitude = k * v2_length_square(particle->velocity);
-        dragForce = v2_scale(dragDirection, dragMagnitude);
-      }
-      sumOfForces = v2_add(sumOfForces, dragForce);
-    }
-#endif
-
+    /*
+     * Integrate applied forces
+     */
     // F = ma
     // a = F/m
     particle->acceleration = v2_scale(sumOfForces, particle->invMass);
@@ -386,6 +329,12 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
   if (impulse)
     DrawLine(renderer, firstParticle->position, mousePosition, COLOR_RED_300, 1);
+
+  // spring
+  v2 springAnchorPosition = state->springAnchorPosition;
+  DrawLine(renderer, v2_add(springAnchorPosition, (v2){-1.0f, 0.0}), v2_add(springAnchorPosition, (v2){1.0f, 0.0f}),
+           COLOR_RED_500, 1);
+  DrawLine(renderer, springAnchorPosition, firstParticle->position, COLOR_RED_500, 1);
 
   // particles
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
