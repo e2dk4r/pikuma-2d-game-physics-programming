@@ -169,60 +169,15 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   /*****************************************************************
    * PHYSICS
    *****************************************************************/
-#if (0 && IS_BUILD_DEBUG)
-  {
-    particle *slowestParticle = state->particles + 0;
-    particle *fastestParticle = state->particles + 0;
-    for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
-      struct particle *particle = state->particles + particleIndex;
-
-      if (v2_length_square(particle->velocity) < v2_length_square(slowestParticle->velocity))
-        slowestParticle = particle;
-
-      if (v2_length_square(particle->velocity) > v2_length_square(fastestParticle->velocity))
-        fastestParticle = particle;
-    }
-
-#define STRING_BUILDER_APPEND_PARTICLE(prefix, particle)                                                               \
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(prefix));                                                 \
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  mass:         "));                                   \
-  StringBuilderAppendF32(sb, particle->mass, 2);                                                                       \
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("kg "));                                                  \
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  position:     "));                                   \
-  StringBuilderAppendF32(sb, particle->position.x, 2);                                                                 \
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));                                                   \
-  StringBuilderAppendF32(sb, particle->position.y, 2);                                                                 \
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  velocity:     "));                                   \
-  StringBuilderAppendF32(sb, v2_length(particle->velocity), 2);                                                        \
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("m/s "));                                                 \
-  StringBuilderAppendF32(sb, particle->velocity.x, 2);                                                                 \
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));                                                   \
-  StringBuilderAppendF32(sb, particle->velocity.y, 2);                                                                 \
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  acceleration: "));                                   \
-  StringBuilderAppendF32(sb, particle->acceleration.x, 2);                                                             \
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));                                                   \
-  StringBuilderAppendF32(sb, particle->acceleration.y, 2);                                                             \
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"))
-
-    STRING_BUILDER_APPEND_PARTICLE("slowest particle:", slowestParticle);
-    STRING_BUILDER_APPEND_PARTICLE("fastest particle:", fastestParticle);
-#undef STRING_BUILDER_APPEND_PARTICLE
-
-    string string = StringBuilderFlush(sb);
-    write(STDOUT_FILENO, string.value, string.length);
-  }
-#endif
-
-  f32 ground = -5.8f;
-
+  /*
+   * - Apply forces
+   */
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
     struct particle *particle = state->particles + particleIndex;
-    struct particle *prevParticle = (particleIndex != 0) ? state->particles + particleIndex - 1 : 0;
+    b8 isFirstParticle = particleIndex == 0;
     b8 isLastParticle = particleIndex == state->particleCount - 1;
+    struct particle *prevParticle = !isFirstParticle ? state->particles + particleIndex - 1 : 0;
 
-    /*
-     * - Apply forces
-     */
     // apply input force
     if (isLastParticle)
       v2_add_ref(&particle->netForce, v2_scale(inputForce, 50.0f));
@@ -258,32 +213,38 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       v2_add_ref(&prevParticle->netForce, v2_neg(springForce));
       v2_add_ref(&prevParticle->netForce, v2_neg(dampingForce));
     }
+  }
 
-    /*
-     * Integrate applied forces
-     */
+  f32 ground = -5.8f;
+
+  /*
+   * - Integrate applied forces
+   */
+  for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
+    struct particle *particle = state->particles + particleIndex;
+    b8 isLastParticle = particleIndex == state->particleCount - 1;
+
+#if 0
+    // constant acceleration
+    // acceleration = f''(t) = a
+    f32 speed = 30.0f; // unit: m/s
+    particle->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
+#endif
+
     // F = ma
     // a = F/m
     particle->acceleration = v2_scale(particle->netForce, particle->invMass);
 
-    // acceleration = f''(t) = a
-    // particle->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
-
     // velocity     = ∫f''(t)
     //              = f'(t) = at + v₀
+    v2_add_ref(&particle->velocity, v2_scale(particle->acceleration, dt));
     // position     = ∫f'(t)
     //              = f(t) = ½at² + vt + p₀
-    particle->velocity = v2_add(particle->velocity, v2_scale(particle->acceleration, dt));
-    particle->position =
-        // ½at² + vt + p₀
-        v2_add(particle->position, v2_add(
-                                       // ½at²
-                                       v2_scale(particle->acceleration, 0.5f * Square(dt)),
-                                       // + vt
-                                       v2_scale(particle->velocity, dt)));
-
-    // clear forces
-    particle->netForce = (v2){0.0f, 0.0f};
+    v2_add_ref(&particle->position, v2_add(
+                                        // ½at²
+                                        v2_scale(particle->acceleration, 0.5f * Square(dt)),
+                                        // + vt
+                                        v2_scale(particle->velocity, dt)));
 
 #if (1 && IS_BUILD_DEBUG)
     {
@@ -309,22 +270,12 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       StringBuilderAppendF32(sb, particle->acceleration.y, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  Fw:  "));
-      StringBuilderAppendF32(sb, weightForce.x, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  Fnet:"));
+      StringBuilderAppendF32(sb, particle->netForce.x, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
-      StringBuilderAppendF32(sb, weightForce.y, 2);
+      StringBuilderAppendF32(sb, particle->netForce.y, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  Fd:  "));
-      StringBuilderAppendF32(sb, dragForce.x, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
-      StringBuilderAppendF32(sb, dragForce.y, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
-
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  Fs:  "));
-      StringBuilderAppendF32(sb, springForce.x, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
-      StringBuilderAppendF32(sb, springForce.y, 2);
       if (isLastParticle) {
         StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
         StringBuilderAppendString(
@@ -336,6 +287,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       write(STDOUT_FILENO, string.value, string.length);
     }
 #endif
+
+    // clear forces
+    particle->netForce = (v2){0.0f, 0.0f};
 
     /*
      * COLLISION
@@ -349,18 +303,6 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       particle->velocity =
           v2_sub(particle->velocity, v2_scale(groundNormal, 2.0f * v2_dot(particle->velocity, groundNormal)));
     }
-
-#if 0
-    // Is particle over 15m away from origin?
-    if (v2_length_square(particle->position) > Square(15.0f)) {
-      random_series *effectsEntropy = &state->effectsEntropy;
-      particle->position = (v2){
-          .x = RandomBetween(effectsEntropy, -5.0f, 5.0f),
-          .y = RandomBetween(effectsEntropy, -5.0f, 5.0f),
-      };
-      particle->velocity = (v2){0, 0};
-    }
-#endif
   }
 
   /*****************************************************************
