@@ -29,41 +29,32 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     };
     memory_arena *worldArena = &state->worldArena;
 
-    state->effectsEntropy = RandomSeed(213);
+    state->effectsEntropy = RandomSeed(1);
     random_series *effectsEntropy = &state->effectsEntropy;
 
-    state->particleMax = 2;
-    state->particleCount = 1;
+    state->particleMax = 4;
+    state->particleCount = 4;
     state->particles = MemoryArenaPush(worldArena, sizeof(*state->particles) * state->particleMax, 4);
     for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
       struct particle *particle = state->particles + particleIndex;
       *particle = (struct particle){
           .position =
               {
-                  .x = RandomBetween(effectsEntropy, -5.0f, 5.0f),
-                  .y = RandomBetween(effectsEntropy, -5.0f, 5.0f),
+                  .x = 0,
+                  .y = 4.0f - (f32)particleIndex * 1.0f,
               },
-          .mass = RandomBetween(effectsEntropy, 0.1f, 8.0f),
+          // .mass = RandomBetween(effectsEntropy, 1.0f, 5.0f),
+          .mass = 2.0f,
       };
-      particle->mass = RandomBetween(effectsEntropy, 0.1f, 8.0f);
       particle->invMass = 1.0f / particle->mass;
     }
+    state->springAnchorPosition = (v2){0.0f, 5.0f};
 
     rect surfaceRect = RendererGetSurfaceRect(renderer);
     state->liquid = (rect){
         .min = surfaceRect.min,
         .max = {surfaceRect.max.x, 0.0f},
     };
-
-#if 1
-    {
-      state->springAnchorPosition = (v2){0.0f, 2.0f};
-      particle *firstParticle = state->particles + 0;
-      firstParticle->position = (v2){0.0f, 0.0f};
-      firstParticle->mass = 3.0f;
-      firstParticle->invMass = 1.0f / firstParticle->mass;
-    }
-#endif
 
     state->isInitialized = 1;
   }
@@ -104,8 +95,6 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
    * INPUT HANDLING
    *****************************************************************/
   global b8 impulse = 0;
-  struct particle *firstParticle = state->particles + 0;
-  struct particle *secondParticle = state->particles + 1;
   v2 mousePosition = {};
   v2 inputForce = {};
   for (u32 controllerIndex = 0; controllerIndex < ARRAY_COUNT(input->controllers); controllerIndex++) {
@@ -131,11 +120,12 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       if (impulse && !controller->lb) {
         impulse = 0;
 
-        v2 diff = v2_sub(firstParticle->position, mousePosition);
+        particle *lastParticle = state->particles + state->particleCount - 1;
+        v2 diff = v2_sub(lastParticle->position, mousePosition);
         f32 impulseMagnitude = v2_length(diff) * 5.0f;
         v2 impulseDirection = v2_normalize(diff);
         v2 impulseVector = v2_scale(impulseDirection, impulseMagnitude);
-        firstParticle->velocity = impulseVector;
+        lastParticle->velocity = impulseVector;
 
 #if (1 && IS_BUILD_DEBUG)
         {
@@ -174,8 +164,6 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       }
 #endif
     }
-
-    inputForce = v2_add(inputForce, input);
   }
 
   /*****************************************************************
@@ -227,39 +215,45 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
   f32 ground = -5.8f;
 
-#if (0 && IS_BUILD_DEBUG)
-  {
-    StringBuilderAppendF32(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
-    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
-    string string = StringBuilderFlush(sb);
-    write(STDOUT_FILENO, string.value, string.length);
-  }
-#endif
-
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
     struct particle *particle = state->particles + particleIndex;
+    struct particle *prevParticle = (particleIndex != 0) ? state->particles + particleIndex - 1 : 0;
+    b8 isLastParticle = particleIndex == state->particleCount - 1;
 
     /*
      * - Apply forces
      */
-    v2 sumOfForces = {0.0f, 0.0f};
-
     // apply input force
-    sumOfForces = v2_add(sumOfForces, v2_scale(inputForce, 15.0f));
+    if (isLastParticle)
+      v2_add_ref(&particle->netForce, v2_scale(inputForce, 50.0f));
 
     // apply weight force
     v2 weightForce = GenerateWeightForce(particle);
-    sumOfForces = v2_add(sumOfForces, weightForce);
+    v2_add_ref(&particle->netForce, weightForce);
 
     // apply drag force
     v2 dragForce = GenerateDragForce(particle, 0.001f);
-    sumOfForces = v2_add(sumOfForces, dragForce);
+    v2_add_ref(&particle->netForce, dragForce);
 
     // apply spring force
-    if (particle == firstParticle) {
-      f32 restLength = 2.0f;
-      v2 springForce = GenerateSpringForce(particle, state->springAnchorPosition, restLength, 100.0f);
-      sumOfForces = v2_add(sumOfForces, springForce);
+    // explanation:
+    // - "Multiple spring-mass system" @00:00:28
+    //   - https://www.youtube.com/watch?v=3wfMPxORS-4
+    //   - https://cdn.kastatic.org/ka-youtube-converted/3wfMPxORS-4.mp4/3wfMPxORS-4.mp4
+    f32 springConstant = 1000.0f;
+    f32 restLength = 1.0f;
+    v2 anchorPosition;
+    if (prevParticle) {
+      // if particle is not first one
+      anchorPosition = prevParticle->position;
+    } else {
+      // if particle is the first one
+      anchorPosition = state->springAnchorPosition;
+    }
+    v2 springForce = GenerateSpringForce(particle, anchorPosition, restLength, springConstant);
+    v2_add_ref(&particle->netForce, springForce);
+    if (prevParticle) {
+      v2_add_ref(&prevParticle->netForce, v2_neg(springForce));
     }
 
     /*
@@ -267,7 +261,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
      */
     // F = ma
     // a = F/m
-    particle->acceleration = v2_scale(sumOfForces, particle->invMass);
+    particle->acceleration = v2_scale(particle->netForce, particle->invMass);
 
     // acceleration = f''(t) = a
     // particle->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
@@ -285,6 +279,64 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
                                        // + vt
                                        v2_scale(particle->velocity, dt)));
 
+    // clear forces
+    particle->netForce = (v2){0.0f, 0.0f};
+
+#if (1 && IS_BUILD_DEBUG)
+    {
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("particle #"));
+      StringBuilderAppendU64(sb, particleIndex + 1);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  pos: "));
+      StringBuilderAppendF32(sb, particle->position.x, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+      StringBuilderAppendF32(sb, particle->position.y, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  vel: "));
+      StringBuilderAppendF32(sb, particle->velocity.x, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+      StringBuilderAppendF32(sb, particle->velocity.y, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  acc: "));
+      StringBuilderAppendF32(sb, particle->acceleration.x, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+      StringBuilderAppendF32(sb, particle->acceleration.y, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  Fw:  "));
+      StringBuilderAppendF32(sb, weightForce.x, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+      StringBuilderAppendF32(sb, weightForce.y, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  Fd:  "));
+      StringBuilderAppendF32(sb, dragForce.x, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+      StringBuilderAppendF32(sb, dragForce.y, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  Fs:  "));
+      StringBuilderAppendF32(sb, springForce.x, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+      StringBuilderAppendF32(sb, springForce.y, 2);
+      if (isLastParticle) {
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+        StringBuilderAppendString(
+            sb, &STRING_FROM_ZERO_TERMINATED("****************************************************************"));
+      }
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+
+      string string = StringBuilderFlush(sb);
+      write(STDOUT_FILENO, string.value, string.length);
+    }
+#endif
+
+    /*
+     * COLLISION
+     */
     // TODO: Ground collision is broken
     if (particle->position.y <= ground) {
       v2 groundNormal = {0.0f, 1.0f};
@@ -295,6 +347,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
           v2_sub(particle->velocity, v2_scale(groundNormal, 2.0f * v2_dot(particle->velocity, groundNormal)));
     }
 
+#if 0
     // Is particle over 15m away from origin?
     if (v2_length_square(particle->position) > Square(15.0f)) {
       random_series *effectsEntropy = &state->effectsEntropy;
@@ -304,6 +357,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       };
       particle->velocity = (v2){0, 0};
     }
+#endif
   }
 
   /*****************************************************************
@@ -328,14 +382,15 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   // mouse
   DrawCrosshair(renderer, mousePosition, 0.5f, COLOR_RED_500);
 
-  if (impulse)
-    DrawLine(renderer, firstParticle->position, mousePosition, COLOR_RED_300, 1);
+  if (impulse) {
+    particle *lastParticle = state->particles + state->particleCount - 1;
+    DrawLine(renderer, lastParticle->position, mousePosition, COLOR_BLUE_300, 1);
+  }
 
   // spring
   v2 springAnchorPosition = state->springAnchorPosition;
   DrawLine(renderer, v2_add(springAnchorPosition, (v2){-1.0f, 0.0}), v2_add(springAnchorPosition, (v2){1.0f, 0.0f}),
            COLOR_RED_500, 1);
-  DrawLine(renderer, springAnchorPosition, firstParticle->position, COLOR_RED_500, 1);
 
   // particles
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
@@ -346,6 +401,15 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     const v4 *color = COLORS + colorIndex * 11 + 6;
 
     DrawCircle(renderer, particle->position, 0.01f + particle->mass / 10.0f, *color);
+
+    // spring connection
+    if (particleIndex == 0)
+      DrawLine(renderer, springAnchorPosition, particle->position, COLOR_RED_500, 1);
+
+    struct particle *nextParticle =
+        (particleIndex != state->particleCount - 1) ? state->particles + particleIndex + 1 : 0;
+    if (nextParticle)
+      DrawLine(renderer, particle->position, nextParticle->position, COLOR_RED_500, 1);
   }
 
   RenderFrame(renderer);

@@ -96,17 +96,17 @@ GenerateGravitationalAttractionForce(struct particle *a, struct particle *b, f32
 }
 
 static v2
-GenerateSpringForce(struct particle *particle, v2 anchorPosition, f32 restLength, f32 k)
+GenerateSpringForce(struct particle *particle, v2 anchorPosition, f32 equilibrium, f32 k)
 {
   /* Generate spring force
    * Hooke's Law:
    *   F = -k ∆l
    *   where k is spring constant
-   *         ∆l is spring displacement
+   *         ∆l is the displacement of the system from its equilibrium position
    */
 
   v2 distance = v2_sub(particle->position, anchorPosition);
-  f32 displacement = v2_length(distance) - restLength;
+  f32 displacement = v2_length(distance) - equilibrium;
 
   v2 springDirection = v2_normalize(distance);
   f32 springMagnitude = -k * displacement;
