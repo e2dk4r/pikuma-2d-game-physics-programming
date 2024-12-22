@@ -170,22 +170,46 @@ typedef struct v2 {
   };
 } v2;
 
+static inline void
+v2_add_ref(v2 *a, v2 b)
+{
+  a->x += b.x;
+  a->y += b.y;
+}
+
 static inline v2
 v2_add(v2 a, v2 b)
 {
-  return (v2){a.x + b.x, a.y + b.y};
+  v2_add_ref(&a, b);
+  return a;
+}
+
+static inline void
+v2_sub_ref(v2 *a, v2 b)
+{
+  a->x -= b.x;
+  a->y -= b.y;
 }
 
 static inline v2
 v2_sub(v2 a, v2 b)
 {
-  return (v2){a.x - b.x, a.y - b.y};
+  v2_sub_ref(&a, b);
+  return a;
+}
+
+static inline void
+v2_scale_ref(v2 *a, f32 scaler)
+{
+  a->x *= scaler;
+  a->y *= scaler;
 }
 
 static inline v2
 v2_scale(v2 a, f32 scaler)
 {
-  return (v2){a.x * scaler, a.y * scaler};
+  v2_scale_ref(&a, scaler);
+  return a;
 }
 
 static inline f32
@@ -194,10 +218,18 @@ v2_dot(v2 a, v2 b)
   return a.x * b.x + a.y * b.y;
 }
 
+static inline void
+v2_hadamard_ref(v2 *a, v2 b)
+{
+  a->x *= b.x;
+  a->y *= b.y;
+}
+
 static inline v2
 v2_hadamard(v2 a, v2 b)
 {
-  return (v2){a.x * b.x, a.y * b.y};
+  v2_hadamard_ref(&a, b);
+  return a;
 }
 
 static inline v2
@@ -218,20 +250,38 @@ v2_length(v2 a)
   return SquareRoot(v2_length_square(a));
 }
 
+static inline void
+v2_normalize_ref(v2 *a)
+{
+  if (v2_length_square(*a) == 0.0f) {
+    a->x = 0.0f;
+    a->y = 0.0f;
+    return;
+  }
+
+  f32 length = v2_length(*a);
+  a->x /= length;
+  a->y /= length;
+}
+
 static inline v2
 v2_normalize(v2 a)
 {
-  f32 length = v2_length(a);
-  if (length == 0)
-    return (v2){0, 0};
-  return v2_scale(a, 1.0f / length);
+  v2_normalize_ref(&a);
+  return a;
+}
+
+static inline void
+v2_neg_ref(v2 *a)
+{
+  v2_scale_ref(a, -1.0f);
 }
 
 static inline v2
 v2_neg(v2 a)
 {
-  v2 result = v2_scale(a, -1.0f);
-  return result;
+  v2_neg_ref(&a);
+  return a;
 }
 
 typedef struct v3 {
