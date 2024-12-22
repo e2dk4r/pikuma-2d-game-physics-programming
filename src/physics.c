@@ -61,7 +61,6 @@ GenerateDragForce(struct particle *particle, f32 k)
   v2 dragForce = {0.0f, 0.0f};
   if (v2_length_square(particle->velocity) > 0.0f) {
     v2 dragDirection = v2_neg(v2_normalize(particle->velocity));
-    f32 k = 0.001f;
     f32 dragMagnitude = k * v2_length_square(particle->velocity);
     dragForce = v2_scale(dragDirection, dragMagnitude);
   }
