@@ -240,7 +240,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     // - "Multiple spring-mass system" @00:00:28
     //   - https://www.youtube.com/watch?v=3wfMPxORS-4
     //   - https://cdn.kastatic.org/ka-youtube-converted/3wfMPxORS-4.mp4/3wfMPxORS-4.mp4
-    f32 springConstant = 1000.0f;
+    f32 springConstant = 100.0f;
     f32 restLength = 1.0f;
     v2 anchorPosition;
     if (prevParticle) {
@@ -252,8 +252,11 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     }
     v2 springForce = GenerateSpringForce(particle, anchorPosition, restLength, springConstant);
     v2_add_ref(&particle->netForce, springForce);
+    v2 dampingForce = GenerateDampingForce(particle, 2.5f);
+    v2_add_ref(&particle->netForce, dampingForce);
     if (prevParticle) {
       v2_add_ref(&prevParticle->netForce, v2_neg(springForce));
+      v2_add_ref(&prevParticle->netForce, v2_neg(dampingForce));
     }
 
     /*

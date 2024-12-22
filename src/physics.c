@@ -113,3 +113,16 @@ GenerateSpringForce(struct particle *particle, v2 anchorPosition, f32 equilibriu
   v2 springForce = v2_scale(springDirection, springMagnitude);
   return springForce;
 }
+
+static v2
+GenerateDampingForce(struct particle *particle, f32 k)
+{
+  /* Damping force:
+   *   F = -kv
+   *   where k is damping constant
+   *         v is velocity
+   */
+
+  v2 dampingForce = v2_scale(particle->velocity, -k);
+  return dampingForce;
+}

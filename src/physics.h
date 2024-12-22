@@ -52,3 +52,9 @@ GenerateGravitationalAttractionForce(struct particle *a, struct particle *b, f32
  */
 static v2
 GenerateSpringForce(struct particle *particle, v2 anchorPosition, f32 equilibrium, f32 k);
+
+/* Generate damping force
+ * @param k damping constant. unit: kg/m
+ */
+static v2
+GenerateDampingForce(struct particle *particle, f32 k);
