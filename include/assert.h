@@ -15,9 +15,12 @@
     __ASSERT__;                                                                                                        \
   }
 
+#define breakpoint() __ASSERT__
+
 #else
 
 #define debug_assert(expression)
+#define breakpoint()
 
 #endif
 
