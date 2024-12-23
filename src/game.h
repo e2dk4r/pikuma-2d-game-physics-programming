@@ -19,12 +19,9 @@ typedef struct {
   memory_arena worldArena;
 
   random_series effectsEntropy;
-  particle *particles;
-  u32 particleCount;
-  u32 particleMax;
-
-  rect liquid;
-  v2 springAnchorPosition;
+  entity *entities;
+  u32 entityCount;
+  u32 entityMax;
 
   f32 time; // unit: sec
 } game_state;

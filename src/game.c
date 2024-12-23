@@ -40,30 +40,24 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
      * └───┘
      */
 
-    state->particleMax = 4;
-    state->particleCount = 4;
-    state->particles = MemoryArenaPush(worldArena, sizeof(*state->particles) * state->particleMax, 4);
+    state->entityMax = 4;
+    state->entityCount = 4;
+    state->entities = MemoryArenaPush(worldArena, sizeof(*state->entities) * state->entityMax, 4);
     v2 positions[] = {
         {0.0f, 0.0f},
         {1.0f, 0.0f},
         {1.0f, 1.0f},
         {0.0f, 1.0f},
     };
-    for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
-      struct particle *particle = state->particles + particleIndex;
-      *particle = (struct particle){
-          .position = positions[particleIndex],
+    for (u32 entityIndex = 0; entityIndex < state->entityCount; entityIndex++) {
+      struct entity *entity = state->entities + entityIndex;
+      *entity = (struct entity){
+          .position = positions[entityIndex],
           // .mass = RandomBetween(effectsEntropy, 1.0f, 5.0f),
           .mass = 2.0f,
       };
-      particle->invMass = 1.0f / particle->mass;
+      entity->invMass = 1.0f / entity->mass;
     }
-
-    rect surfaceRect = RendererGetSurfaceRect(renderer);
-    state->liquid = (rect){
-        .min = surfaceRect.min,
-        .max = {surfaceRect.max.x, 0.0f},
-    };
 
     state->isInitialized = 1;
   }
@@ -129,12 +123,12 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       if (impulse && !controller->lb) {
         impulse = 0;
 
-        particle *lastParticle = state->particles + state->particleCount - 1;
-        v2 diff = v2_sub(lastParticle->position, mousePosition);
+        entity *lastEntity = state->entities + state->entityCount - 1;
+        v2 diff = v2_sub(lastEntity->position, mousePosition);
         f32 impulseMagnitude = v2_length(diff) * 5.0f;
         v2 impulseDirection = v2_normalize(diff);
         v2 impulseVector = v2_scale(impulseDirection, impulseMagnitude);
-        lastParticle->velocity = impulseVector;
+        lastEntity->velocity = impulseVector;
 
 #if (1 && IS_BUILD_DEBUG)
         {
@@ -148,30 +142,6 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
         }
 #endif
       }
-#if 0
-      static f32 lbPressedAt = 0.0f;
-      if (controller->lb) {
-        if (lbPressedAt == 0.0f && state->particleCount != state->particleMax) {
-          u32 particleIndex = state->particleCount;
-          struct particle *particle = state->particles + particleIndex;
-          particle->position = mousePosition;
-          particle->mass = 1.0f;
-          particle->invMass = 1.0f / particle->mass;
-
-          state->particleCount++;
-
-          lbPressedAt = state->time;
-        }
-
-        // Register click at 100ms intervals.
-        // 1s = 10³ms
-        if ((state->time - lbPressedAt) >= 0.1f) {
-          lbPressedAt = 0.0f;
-        }
-      } else {
-        lbPressedAt = 0.0f;
-      }
-#endif
     }
   }
 
@@ -186,24 +156,24 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   /*
    * - Apply forces
    */
-  for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
-    struct particle *particle = state->particles + particleIndex;
-    b8 isLastParticle = particleIndex == state->particleCount - 1;
-    struct particle *nextParticle = state->particles + (particleIndex + 1) % state->particleCount;
+  for (u32 entityIndex = 0; entityIndex < state->entityCount; entityIndex++) {
+    struct entity *entity = state->entities + entityIndex;
+    b8 isLastEntity = entityIndex == state->entityCount - 1;
+    struct entity *nextEntity = state->entities + (entityIndex + 1) % state->entityCount;
 
     // apply input force
-    if (isLastParticle)
-      v2_add_ref(&particle->netForce, v2_scale(inputForce, 50.0f));
+    if (isLastEntity)
+      v2_add_ref(&entity->netForce, v2_scale(inputForce, 50.0f));
 
     // apply weight force
-    v2 weightForce = GenerateWeightForce(particle);
-    v2_add_ref(&particle->netForce, weightForce);
-    if (IsPointInsideRect(particle->position, groundRect))
-      v2_add_ref(&particle->netForce, v2_neg(weightForce));
+    v2 weightForce = GenerateWeightForce(entity);
+    v2_add_ref(&entity->netForce, weightForce);
+    if (IsPointInsideRect(entity->position, groundRect))
+      v2_add_ref(&entity->netForce, v2_neg(weightForce));
 
     // apply drag force
-    v2 dragForce = GenerateDragForce(particle, 0.001f);
-    v2_add_ref(&particle->netForce, dragForce);
+    v2 dragForce = GenerateDragForce(entity, 0.001f);
+    v2_add_ref(&entity->netForce, dragForce);
 
     // apply spring force
     // explanation:
@@ -218,86 +188,85 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     v2 springForce;
     v2 dampingForce;
 
-    anchorPosition = nextParticle->position;
-    springForce = GenerateSpringForce(particle, anchorPosition, restLength, springConstant);
-    v2_add_ref(&particle->netForce, springForce);
-    v2_add_ref(&nextParticle->netForce, v2_neg(springForce));
-    dampingForce = GenerateDampingForce(particle, dampingConstant);
-    v2_add_ref(&particle->netForce, dampingForce);
-    v2_add_ref(&nextParticle->netForce, v2_neg(dampingForce));
+    anchorPosition = nextEntity->position;
+    springForce = GenerateSpringForce(entity, anchorPosition, restLength, springConstant);
+    v2_add_ref(&entity->netForce, springForce);
+    v2_add_ref(&nextEntity->netForce, v2_neg(springForce));
+    dampingForce = GenerateDampingForce(entity, dampingConstant);
+    v2_add_ref(&entity->netForce, dampingForce);
+    v2_add_ref(&nextEntity->netForce, v2_neg(dampingForce));
 
-    struct particle *crossParticle =
-        particleIndex + 2 < state->particleCount ? state->particles + particleIndex + 2 : 0;
-    if (crossParticle) {
-      anchorPosition = crossParticle->position;
-      springForce = GenerateSpringForce(particle, anchorPosition, restLength, springConstant);
-      v2_add_ref(&particle->netForce, springForce);
-      v2_add_ref(&crossParticle->netForce, v2_neg(springForce));
-      dampingForce = GenerateDampingForce(particle, dampingConstant);
-      v2_add_ref(&particle->netForce, dampingForce);
-      v2_add_ref(&crossParticle->netForce, v2_neg(dampingForce));
+    struct entity *crossEntity = entityIndex + 2 < state->entityCount ? state->entities + entityIndex + 2 : 0;
+    if (crossEntity) {
+      anchorPosition = crossEntity->position;
+      springForce = GenerateSpringForce(entity, anchorPosition, restLength, springConstant);
+      v2_add_ref(&entity->netForce, springForce);
+      v2_add_ref(&crossEntity->netForce, v2_neg(springForce));
+      dampingForce = GenerateDampingForce(entity, dampingConstant);
+      v2_add_ref(&entity->netForce, dampingForce);
+      v2_add_ref(&crossEntity->netForce, v2_neg(dampingForce));
     }
   }
 
   /*
    * - Integrate applied forces
    */
-  for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
-    struct particle *particle = state->particles + particleIndex;
-    b8 isLastParticle = particleIndex == state->particleCount - 1;
+  for (u32 entityIndex = 0; entityIndex < state->entityCount; entityIndex++) {
+    struct entity *entity = state->entities + entityIndex;
+    b8 isLastEntity = entityIndex == state->entityCount - 1;
 
 #if 0
     // constant acceleration
     // acceleration = f''(t) = a
     f32 speed = 30.0f; // unit: m/s
-    particle->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
+    entity->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
 #endif
 
     // F = ma
     // a = F/m
-    particle->acceleration = v2_scale(particle->netForce, particle->invMass);
+    entity->acceleration = v2_scale(entity->netForce, entity->invMass);
 
     // velocity     = ∫f''(t)
     //              = f'(t) = at + v₀
-    v2_add_ref(&particle->velocity, v2_scale(particle->acceleration, dt));
+    v2_add_ref(&entity->velocity, v2_scale(entity->acceleration, dt));
     // position     = ∫f'(t)
     //              = f(t) = ½at² + vt + p₀
-    v2_add_ref(&particle->position, v2_add(
-                                        // ½at²
-                                        v2_scale(particle->acceleration, 0.5f * Square(dt)),
-                                        // + vt
-                                        v2_scale(particle->velocity, dt)));
+    v2_add_ref(&entity->position, v2_add(
+                                      // ½at²
+                                      v2_scale(entity->acceleration, 0.5f * Square(dt)),
+                                      // + vt
+                                      v2_scale(entity->velocity, dt)));
 
 #if (1 && IS_BUILD_DEBUG)
     {
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("particle #"));
-      StringBuilderAppendU64(sb, particleIndex + 1);
+      StringBuilderAppendU64(sb, entityIndex + 1);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  pos: "));
-      StringBuilderAppendF32(sb, particle->position.x, 2);
+      StringBuilderAppendF32(sb, entity->position.x, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
-      StringBuilderAppendF32(sb, particle->position.y, 2);
+      StringBuilderAppendF32(sb, entity->position.y, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  vel: "));
-      StringBuilderAppendF32(sb, particle->velocity.x, 2);
+      StringBuilderAppendF32(sb, entity->velocity.x, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
-      StringBuilderAppendF32(sb, particle->velocity.y, 2);
+      StringBuilderAppendF32(sb, entity->velocity.y, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  acc: "));
-      StringBuilderAppendF32(sb, particle->acceleration.x, 2);
+      StringBuilderAppendF32(sb, entity->acceleration.x, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
-      StringBuilderAppendF32(sb, particle->acceleration.y, 2);
+      StringBuilderAppendF32(sb, entity->acceleration.y, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  Fnet:"));
-      StringBuilderAppendF32(sb, particle->netForce.x, 2);
+      StringBuilderAppendF32(sb, entity->netForce.x, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
-      StringBuilderAppendF32(sb, particle->netForce.y, 2);
+      StringBuilderAppendF32(sb, entity->netForce.y, 2);
 
-      if (isLastParticle) {
+      if (isLastEntity) {
         StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
         StringBuilderAppendString(
             sb, &STRING_FROM_ZERO_TERMINATED("****************************************************************"));
@@ -310,19 +279,19 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 #endif
 
     // clear forces
-    particle->netForce = (v2){0.0f, 0.0f};
+    entity->netForce = (v2){0.0f, 0.0f};
 
     /*
      * COLLISION
      */
     // TODO: Ground collision is broken
-    if (IsPointInsideRect(particle->position, groundRect)) {
+    if (IsPointInsideRect(entity->position, groundRect)) {
       v2 groundNormal = {0.0f, 1.0f};
 
       // reflect
       // v' = v - 2(v∙n)n
-      particle->velocity =
-          v2_sub(particle->velocity, v2_scale(groundNormal, 2.0f * v2_dot(particle->velocity, groundNormal)));
+      entity->velocity =
+          v2_sub(entity->velocity, v2_scale(groundNormal, 2.0f * v2_dot(entity->velocity, groundNormal)));
     }
   }
 
@@ -338,42 +307,36 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 #endif
 
   // ground
-  DrawRect(renderer, groundRect, COLOR_GRAY_500);
-
-#if 0
-  // liquid
-  DrawRect(renderer, state->liquid, COLOR_BLUE_950);
-#endif
+  DrawRect(renderer, groundRect, COLOR_GRAY_800);
 
   // mouse
   DrawCrosshair(renderer, mousePosition, 0.5f, COLOR_RED_500);
 
   if (impulse) {
-    particle *lastParticle = state->particles + state->particleCount - 1;
-    DrawLine(renderer, lastParticle->position, mousePosition, COLOR_BLUE_300, 1);
+    entity *lastEntity = state->entities + state->entityCount - 1;
+    DrawLine(renderer, lastEntity->position, mousePosition, COLOR_BLUE_300, 1);
   }
 
-  // particles
-  for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
-    struct particle *particle = state->particles + particleIndex;
+  // entities
+  for (u32 entityIndex = 0; entityIndex < state->entityCount; entityIndex++) {
+    struct entity *entity = state->entities + entityIndex;
 
-    f32 massNormalized = particle->mass / 10.0f /* maximum particle mass */;
+    f32 massNormalized = entity->mass / 10.0f /* maximum mass */;
     u32 colorIndex = (u32)(Lerp(0.0f, ARRAY_COUNT(COLORS) / 11, massNormalized));
     const v4 *color = COLORS + colorIndex * 11 + 6;
 
-    DrawCircle(renderer, particle->position, 0.01f + particle->mass / 10.0f, *color);
+    DrawCircle(renderer, entity->position, 0.01f + entity->mass / 10.0f, *color);
 
-    struct particle *nextParticle = particleIndex + 1 < state->particleCount ? state->particles + particleIndex + 1 : 0;
-    if (nextParticle) {
-      DrawLine(renderer, particle->position, nextParticle->position, COLOR_RED_500, 1);
+    struct entity *nextEntity = entityIndex + 1 < state->entityCount ? state->entities + entityIndex + 1 : 0;
+    if (nextEntity) {
+      DrawLine(renderer, entity->position, nextEntity->position, COLOR_RED_500, 1);
     } else {
-      struct particle *firstParticle = state->particles + 0;
-      DrawLine(renderer, particle->position, firstParticle->position, COLOR_RED_500, 1);
+      struct entity *firstEntity = state->entities + 0;
+      DrawLine(renderer, entity->position, firstEntity->position, COLOR_RED_500, 1);
     }
-    struct particle *crossParticle =
-        particleIndex + 2 < state->particleCount ? state->particles + particleIndex + 2 : 0;
-    if (crossParticle) {
-      DrawLine(renderer, particle->position, crossParticle->position, COLOR_RED_500, 1);
+    struct entity *crossEntity = entityIndex + 2 < state->entityCount ? state->entities + entityIndex + 2 : 0;
+    if (crossEntity) {
+      DrawLine(renderer, entity->position, crossEntity->position, COLOR_RED_500, 1);
     }
   }
 

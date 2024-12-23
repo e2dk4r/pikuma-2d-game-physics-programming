@@ -2,7 +2,7 @@
 #include "math.h"
 
 static v2
-GenerateWeightForce(struct particle *particle)
+GenerateWeightForce(struct entity *entity)
 {
   // see: https://en.wikipedia.org/wiki/Gravity_of_Earth
   // unit: m/s²
@@ -14,7 +14,7 @@ GenerateWeightForce(struct particle *particle)
    *         g is gravity
    */
 
-  v2 weightForce = v2_scale(earthGravityForce, particle->mass);
+  v2 weightForce = v2_scale(earthGravityForce, entity->mass);
   return weightForce;
 }
 
@@ -26,7 +26,7 @@ GenerateWindForce(void)
 }
 
 static v2
-GenerateFrictionForce(struct particle *particle, f32 k)
+GenerateFrictionForce(struct entity *entity, f32 k)
 {
   /* Generate friction force
    *   F = μ ‖Fn‖ (-normalized(v))
@@ -38,13 +38,13 @@ GenerateFrictionForce(struct particle *particle, f32 k)
    *   where k is magnitude of friction
    */
 
-  v2 frictionDirection = v2_neg(v2_normalize(particle->velocity));
+  v2 frictionDirection = v2_neg(v2_normalize(entity->velocity));
   f32 frictionMagnitude = 0.2f;
   v2 frictionForce = v2_scale(frictionDirection, frictionMagnitude);
   return frictionForce;
 }
 static v2
-GenerateDragForce(struct particle *particle, f32 k)
+GenerateDragForce(struct entity *entity, f32 k)
 {
   /* Generate drag force
    * Drag force law is:
@@ -59,16 +59,16 @@ GenerateDragForce(struct particle *particle, f32 k)
    */
 
   v2 dragForce = {0.0f, 0.0f};
-  if (v2_length_square(particle->velocity) > 0.0f) {
-    v2 dragDirection = v2_neg(v2_normalize(particle->velocity));
-    f32 dragMagnitude = k * v2_length_square(particle->velocity);
+  if (v2_length_square(entity->velocity) > 0.0f) {
+    v2 dragDirection = v2_neg(v2_normalize(entity->velocity));
+    f32 dragMagnitude = k * v2_length_square(entity->velocity);
     dragForce = v2_scale(dragDirection, dragMagnitude);
   }
   return dragForce;
 }
 
 static v2
-GenerateGravitationalAttractionForce(struct particle *a, struct particle *b, f32 G)
+GenerateGravitationalAttractionForce(struct entity *a, struct entity *b, f32 G)
 {
   /* unit: m³ kg⁻¹ s⁻²
    * see: https://en.wikipedia.org/wiki/Gravitational_constant#Modern_value
@@ -84,8 +84,8 @@ GenerateGravitationalAttractionForce(struct particle *a, struct particle *b, f32
   v2 distance = v2_sub(b->position, a->position);
   f32 distanceSquared = v2_length_square(distance);
 
-  // Avoid division by zero or excessively large forces when particles are too close
-  // Not physically accurate.
+  // Avoid division by zero or excessively large forces when entities are too
+  // close. Not physically accurate.
   distanceSquared = Clamp(distanceSquared, 0.1f, 8.0f);
 
   f32 attractionMagnitude = G * (a->mass * b->mass) / distanceSquared;
@@ -96,7 +96,7 @@ GenerateGravitationalAttractionForce(struct particle *a, struct particle *b, f32
 }
 
 static v2
-GenerateSpringForce(struct particle *particle, v2 anchorPosition, f32 equilibrium, f32 k)
+GenerateSpringForce(struct entity *entity, v2 anchorPosition, f32 equilibrium, f32 k)
 {
   /* Generate spring force
    * Hooke's Law:
@@ -105,7 +105,7 @@ GenerateSpringForce(struct particle *particle, v2 anchorPosition, f32 equilibriu
    *         ∆l is the displacement of the system from its equilibrium position
    */
 
-  v2 distance = v2_sub(particle->position, anchorPosition);
+  v2 distance = v2_sub(entity->position, anchorPosition);
   f32 displacement = v2_length(distance) - equilibrium;
 
   v2 springDirection = v2_normalize(distance);
@@ -115,7 +115,7 @@ GenerateSpringForce(struct particle *particle, v2 anchorPosition, f32 equilibriu
 }
 
 static v2
-GenerateDampingForce(struct particle *particle, f32 k)
+GenerateDampingForce(struct entity *entity, f32 k)
 {
   /* Damping force:
    *   F = -kv
@@ -123,6 +123,6 @@ GenerateDampingForce(struct particle *particle, f32 k)
    *         v is velocity
    */
 
-  v2 dampingForce = v2_scale(particle->velocity, -k);
+  v2 dampingForce = v2_scale(entity->velocity, -k);
   return dampingForce;
 }
