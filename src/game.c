@@ -32,23 +32,32 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     state->effectsEntropy = RandomSeed(1);
     random_series *effectsEntropy = &state->effectsEntropy;
 
+    /* 4 particles placed in square form and connected by 6 springs
+     * ┌───┐
+     * │╲ ╱│
+     * │ ╳ │
+     * │╱ ╲│
+     * └───┘
+     */
+
     state->particleMax = 4;
     state->particleCount = 4;
     state->particles = MemoryArenaPush(worldArena, sizeof(*state->particles) * state->particleMax, 4);
+    v2 positions[] = {
+        {0.0f, 0.0f},
+        {1.0f, 0.0f},
+        {1.0f, 1.0f},
+        {0.0f, 1.0f},
+    };
     for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
       struct particle *particle = state->particles + particleIndex;
       *particle = (struct particle){
-          .position =
-              {
-                  .x = 0,
-                  .y = 4.0f - (f32)particleIndex * 1.0f,
-              },
+          .position = positions[particleIndex],
           // .mass = RandomBetween(effectsEntropy, 1.0f, 5.0f),
           .mass = 2.0f,
       };
       particle->invMass = 1.0f / particle->mass;
     }
-    state->springAnchorPosition = (v2){0.0f, 5.0f};
 
     rect surfaceRect = RendererGetSurfaceRect(renderer);
     state->liquid = (rect){
@@ -169,14 +178,18 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   /*****************************************************************
    * PHYSICS
    *****************************************************************/
+  rect groundRect = {
+      .min = {-1000.0f, -1000.0f},
+      .max = {1000.0f, -5.8f},
+  };
+
   /*
    * - Apply forces
    */
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
     struct particle *particle = state->particles + particleIndex;
-    b8 isFirstParticle = particleIndex == 0;
     b8 isLastParticle = particleIndex == state->particleCount - 1;
-    struct particle *prevParticle = !isFirstParticle ? state->particles + particleIndex - 1 : 0;
+    struct particle *nextParticle = state->particles + (particleIndex + 1) % state->particleCount;
 
     // apply input force
     if (isLastParticle)
@@ -185,6 +198,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     // apply weight force
     v2 weightForce = GenerateWeightForce(particle);
     v2_add_ref(&particle->netForce, weightForce);
+    if (IsPointInsideRect(particle->position, groundRect))
+      v2_add_ref(&particle->netForce, v2_neg(weightForce));
 
     // apply drag force
     v2 dragForce = GenerateDragForce(particle, 0.001f);
@@ -195,27 +210,34 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     // - "Multiple spring-mass system" @00:00:28
     //   - https://www.youtube.com/watch?v=3wfMPxORS-4
     //   - https://cdn.kastatic.org/ka-youtube-converted/3wfMPxORS-4.mp4/3wfMPxORS-4.mp4
-    f32 springConstant = 100.0f;
+    f32 springConstant = 1000.0f;
     f32 restLength = 1.0f;
+    f32 dampingConstant = 8.5f;
+
     v2 anchorPosition;
-    if (prevParticle) {
-      // if particle is not first one
-      anchorPosition = prevParticle->position;
-    } else {
-      // if particle is the first one
-      anchorPosition = state->springAnchorPosition;
-    }
-    v2 springForce = GenerateSpringForce(particle, anchorPosition, restLength, springConstant);
+    v2 springForce;
+    v2 dampingForce;
+
+    anchorPosition = nextParticle->position;
+    springForce = GenerateSpringForce(particle, anchorPosition, restLength, springConstant);
     v2_add_ref(&particle->netForce, springForce);
-    v2 dampingForce = GenerateDampingForce(particle, 2.5f);
+    v2_add_ref(&nextParticle->netForce, v2_neg(springForce));
+    dampingForce = GenerateDampingForce(particle, dampingConstant);
     v2_add_ref(&particle->netForce, dampingForce);
-    if (prevParticle) {
-      v2_add_ref(&prevParticle->netForce, v2_neg(springForce));
-      v2_add_ref(&prevParticle->netForce, v2_neg(dampingForce));
+    v2_add_ref(&nextParticle->netForce, v2_neg(dampingForce));
+
+    struct particle *crossParticle =
+        particleIndex + 2 < state->particleCount ? state->particles + particleIndex + 2 : 0;
+    if (crossParticle) {
+      anchorPosition = crossParticle->position;
+      springForce = GenerateSpringForce(particle, anchorPosition, restLength, springConstant);
+      v2_add_ref(&particle->netForce, springForce);
+      v2_add_ref(&crossParticle->netForce, v2_neg(springForce));
+      dampingForce = GenerateDampingForce(particle, dampingConstant);
+      v2_add_ref(&particle->netForce, dampingForce);
+      v2_add_ref(&crossParticle->netForce, v2_neg(dampingForce));
     }
   }
-
-  f32 ground = -5.8f;
 
   /*
    * - Integrate applied forces
@@ -274,7 +296,6 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       StringBuilderAppendF32(sb, particle->netForce.x, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
       StringBuilderAppendF32(sb, particle->netForce.y, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       if (isLastParticle) {
         StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
@@ -295,7 +316,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
      * COLLISION
      */
     // TODO: Ground collision is broken
-    if (particle->position.y <= ground) {
+    if (IsPointInsideRect(particle->position, groundRect)) {
       v2 groundNormal = {0.0f, 1.0f};
 
       // reflect
@@ -317,7 +338,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 #endif
 
   // ground
-  DrawLine(renderer, (v2){-15, ground}, (v2){15, ground}, COLOR_GRAY_500, 1);
+  DrawRect(renderer, groundRect, COLOR_GRAY_500);
 
 #if 0
   // liquid
@@ -332,11 +353,6 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     DrawLine(renderer, lastParticle->position, mousePosition, COLOR_BLUE_300, 1);
   }
 
-  // spring
-  v2 springAnchorPosition = state->springAnchorPosition;
-  DrawLine(renderer, v2_add(springAnchorPosition, (v2){-1.0f, 0.0}), v2_add(springAnchorPosition, (v2){1.0f, 0.0f}),
-           COLOR_RED_500, 1);
-
   // particles
   for (u32 particleIndex = 0; particleIndex < state->particleCount; particleIndex++) {
     struct particle *particle = state->particles + particleIndex;
@@ -347,14 +363,18 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
     DrawCircle(renderer, particle->position, 0.01f + particle->mass / 10.0f, *color);
 
-    // spring connection
-    if (particleIndex == 0)
-      DrawLine(renderer, springAnchorPosition, particle->position, COLOR_RED_500, 1);
-
-    struct particle *nextParticle =
-        (particleIndex != state->particleCount - 1) ? state->particles + particleIndex + 1 : 0;
-    if (nextParticle)
+    struct particle *nextParticle = particleIndex + 1 < state->particleCount ? state->particles + particleIndex + 1 : 0;
+    if (nextParticle) {
       DrawLine(renderer, particle->position, nextParticle->position, COLOR_RED_500, 1);
+    } else {
+      struct particle *firstParticle = state->particles + 0;
+      DrawLine(renderer, particle->position, firstParticle->position, COLOR_RED_500, 1);
+    }
+    struct particle *crossParticle =
+        particleIndex + 2 < state->particleCount ? state->particles + particleIndex + 2 : 0;
+    if (crossParticle) {
+      DrawLine(renderer, particle->position, crossParticle->position, COLOR_RED_500, 1);
+    }
   }
 
   RenderFrame(renderer);

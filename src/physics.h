@@ -14,7 +14,7 @@ typedef struct particle {
   v2 velocity;     // unit: m/s
   v2 acceleration; // unit: m/s²
   f32 mass;        // unit: kg
-  f32 invMass;     // computed from 1/mass
+  f32 invMass;     // computed from 1/mass. unit: kg⁻¹
   v2 netForce;
 } particle;
 
