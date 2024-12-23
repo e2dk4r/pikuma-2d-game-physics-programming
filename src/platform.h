@@ -3,20 +3,31 @@
 #include "type.h"
 
 typedef struct {
-  b8 a : 1;
-  b8 b : 1;
-  b8 x : 1;
-  b8 y : 1;
+  b8 isDown : 1;  // holding button down, being pressed
+  b8 wasDown : 1; // released or clicked
+} game_controller_button;
 
-  b8 back : 1;
-  b8 start : 1;
-  b8 home : 1;
+typedef struct {
+  union {
+    struct {
+      game_controller_button a;
+      game_controller_button b;
+      game_controller_button x;
+      game_controller_button y;
 
-  b8 ls : 1;
-  b8 rs : 1;
+      game_controller_button back;
+      game_controller_button start;
+      game_controller_button home;
 
-  b8 lb : 1;
-  b8 rb : 1;
+      game_controller_button ls;
+      game_controller_button rs;
+
+      game_controller_button lb;
+      game_controller_button rb;
+    };
+
+    game_controller_button buttons[11];
+  };
 
   // [-1, 1] math coordinates
   f32 lsX;

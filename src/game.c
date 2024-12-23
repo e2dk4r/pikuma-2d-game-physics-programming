@@ -97,7 +97,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   /*****************************************************************
    * INPUT HANDLING
    *****************************************************************/
-  global b8 impulse = 0;
+  b8 impulse = 0;
   v2 mousePosition = {};
   v2 inputForce = {};
   for (u32 controllerIndex = 0; controllerIndex < ARRAY_COUNT(input->controllers); controllerIndex++) {
@@ -116,11 +116,11 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       mousePosition = v2_hadamard((v2){controller->rsX, controller->rsY}, // [-1.0, 1.0]
                                   surfaceHalfDim);
 
-      if (controller->lb) {
+      if (controller->lb.isDown) {
         impulse = 1;
       }
 
-      if (impulse && !controller->lb) {
+      if (controller->lb.wasDown) {
         impulse = 0;
 
         entity *lastEntity = state->entities + state->entityCount - 1;

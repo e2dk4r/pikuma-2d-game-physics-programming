@@ -38,6 +38,14 @@ typedef struct {
 
 #if IS_BUILD_DEBUG
 
+static inline void
+GameControllerButtonPress(game_controller_button *button, b8 isDown)
+{
+  b8 prevIsDown = button->isDown;
+  button->wasDown = prevIsDown && !isDown;
+  button->isDown = (b8)(isDown & 0x1);
+}
+
 static void
 GameLibraryReload(game_library *lib, sdl_state *state)
 {
@@ -115,6 +123,12 @@ SDL_AppIterate(void *appstate)
     game_input *prevInput = input;
     game_input *nextInput = state->inputs + state->inputIndex;
     *nextInput = *prevInput;
+    for (u32 controllerIndex = 0; controllerIndex < ARRAY_COUNT(nextInput->controllers); controllerIndex++) {
+      game_controller *controller = nextInput->controllers + controllerIndex;
+      for (u32 buttonIndex = 0; buttonIndex < ARRAY_COUNT(controller->buttons); buttonIndex++) {
+        controller->buttons[buttonIndex].wasDown = 0;
+      }
+    }
   }
 
   return SDL_APP_CONTINUE;
@@ -174,12 +188,13 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
         GameControllerGetKeyboardAndMouse(input->controllers, ARRAY_COUNT(input->controllers));
     SDL_MouseButtonEvent buttonEvent = event->button;
     u64 timestamp = buttonEvent.timestamp;
-    b8 isPressed = buttonEvent.down;
+    b8 isDown = buttonEvent.down;
 
-    if (buttonEvent.button == SDL_BUTTON_LEFT)
-      keyboardAndMouse->lb = (u8)(isPressed & 0x1);
-    else if (buttonEvent.button == SDL_BUTTON_RIGHT)
-      keyboardAndMouse->rb = (u8)(isPressed & 0x1);
+    if (buttonEvent.button == SDL_BUTTON_LEFT) {
+      GameControllerButtonPress(&keyboardAndMouse->lb, isDown);
+    } else if (buttonEvent.button == SDL_BUTTON_RIGHT) {
+      GameControllerButtonPress(&keyboardAndMouse->rb, isDown);
+    }
   } break;
 
   case SDL_EVENT_MOUSE_MOTION: {
@@ -238,52 +253,52 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     game_controller *controller =
         GameControllerGetGamepad(input->controllers, ARRAY_COUNT(input->controllers), (u32)gamepadIndex);
 
-    b8 isPressed = buttonEvent.down;
+    b8 isDown = buttonEvent.down;
     switch (buttonEvent.button) {
     case SDL_GAMEPAD_BUTTON_SOUTH: {
-      controller->a = (u8)(isPressed & 0x1);
+      GameControllerButtonPress(&controller->a, isDown);
     } break;
     case SDL_GAMEPAD_BUTTON_EAST: {
-      controller->b = (u8)(isPressed & 0x1);
+      GameControllerButtonPress(&controller->b, isDown);
     } break;
     case SDL_GAMEPAD_BUTTON_WEST: {
-      controller->x = (u8)(isPressed & 0x1);
+      GameControllerButtonPress(&controller->x, isDown);
     } break;
     case SDL_GAMEPAD_BUTTON_NORTH: {
-      controller->y = (u8)(isPressed & 0x1);
+      GameControllerButtonPress(&controller->y, isDown);
     } break;
     case SDL_GAMEPAD_BUTTON_BACK: {
-      controller->back = (u8)(isPressed & 0x1);
+      GameControllerButtonPress(&controller->back, isDown);
     } break;
     case SDL_GAMEPAD_BUTTON_GUIDE: {
-      controller->home = (u8)(isPressed & 0x1);
+      GameControllerButtonPress(&controller->home, isDown);
     } break;
     case SDL_GAMEPAD_BUTTON_START: {
-      controller->start = (u8)(isPressed & 0x1);
+      GameControllerButtonPress(&controller->start, isDown);
     } break;
     case SDL_GAMEPAD_BUTTON_LEFT_STICK: {
-      controller->ls = (u8)(isPressed & 0x1);
+      GameControllerButtonPress(&controller->ls, isDown);
     } break;
     case SDL_GAMEPAD_BUTTON_RIGHT_STICK: {
-      controller->rs = (u8)(isPressed & 0x1);
+      GameControllerButtonPress(&controller->rs, isDown);
     } break;
     case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: {
-      controller->lb = (u8)(isPressed & 0x1);
+      GameControllerButtonPress(&controller->lb, isDown);
     } break;
     case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: {
-      controller->rb = (u8)(isPressed & 0x1);
+      GameControllerButtonPress(&controller->rb, isDown);
     } break;
     case SDL_GAMEPAD_BUTTON_DPAD_UP: {
-      controller->lsY = (f32)isPressed;
+      controller->lsY = (f32)isDown;
     } break;
     case SDL_GAMEPAD_BUTTON_DPAD_DOWN: {
-      controller->lsY = -(f32)isPressed;
+      controller->lsY = -(f32)isDown;
     } break;
     case SDL_GAMEPAD_BUTTON_DPAD_LEFT: {
-      controller->lsX = -(f32)isPressed;
+      controller->lsX = -(f32)isDown;
     } break;
     case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: {
-      controller->lsX = (f32)isPressed;
+      controller->lsX = (f32)isDown;
     } break;
     }
   } break;
