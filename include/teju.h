@@ -186,7 +186,7 @@ teju_multiply(uint64_t const a, uint64_t const b, uint64_t *upper)
 static inline s32
 teju_log10_pow2(s32 const e)
 {
-  return (((s64)1292913987) * e) >> 32;
+  return (s32)((((s64)1292913987) * e) >> 32);
 }
 
 /**
@@ -462,7 +462,7 @@ teju_mshift(teju_u1_t const m, teju_u1_t const u, teju_u1_t const l)
 
   teju_u2_t const s0 = ((teju_u2_t)l) * m;
   teju_u2_t const s1 = ((teju_u2_t)u) * m;
-  return (s1 + (s0 >> teju_size)) >> (teju_calculation_shift - teju_size);
+  return (u32)((s1 + (s0 >> teju_size)) >> (teju_calculation_shift - teju_size));
 
 #elif teju_calculation_mshift == teju_synthetic_1
 
@@ -592,7 +592,7 @@ teju_div10(teju_u1_t const m)
 #elif teju_calculation_div10 == teju_built_in_2
 
   teju_u1_t const inv10 = ((teju_u1_t)-1) / 10 + 1;
-  return (((teju_u2_t)inv10) * m) >> teju_size;
+  return (teju_u1_t)((((teju_u2_t)inv10) * m) >> teju_size);
 
 #elif teju_calculation_div10 == teju_synthetic_1
 
@@ -698,7 +698,7 @@ teju_is_tie_uncentred(s32 const f)
 static inline teju_fields_t
 teju_make_fields(teju_u1_t const m, s32 const e, u8 const s)
 {
-  teju_fields_t const fields = {m, e, s};
+  teju_fields_t const fields = {m, e, (u8)(s & 1)};
   return fields;
 }
 
@@ -900,7 +900,7 @@ teju_ieee32_to_binary(teju32_fields_t ieee32)
     m += teju_pow2(u64, mantissa_size);
   }
 
-  teju32_fields_t teju_binary = {m, e, s};
+  teju32_fields_t teju_binary = {m, e, (u8)(s & 1)};
   return teju_binary;
 }
 

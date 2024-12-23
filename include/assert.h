@@ -1,15 +1,27 @@
 #pragma once
 
 #if IS_BUILD_DEBUG
-#define debug_assert(x)                                                                                                \
-  if (!(x)) {                                                                                                          \
-    __builtin_debugtrap();                                                                                             \
-  }
+
+#if defined(__has_builtin) && __has_builtin(__builtin_debugtrap)
+#define __ASSERT__ __builtin_debugtrap()
+#elif defined(_MSC_VER)
+#define __ASSERT__ __debugbreak()
 #else
-#define debug_assert(x)
+#define __ASSERT__ __asm__("int3; nop")
+#endif
+
+#define debug_assert(expression)                                                                                       \
+  if (!(expression)) {                                                                                                 \
+    __ASSERT__;                                                                                                        \
+  }
+
+#else
+
+#define debug_assert(expression)
+
 #endif
 
 #define runtime_assert(x)                                                                                              \
   if (!(x)) {                                                                                                          \
-    __builtin_trap();                                                                                                  \
+    __ASSERT__;                                                                                                        \
   }

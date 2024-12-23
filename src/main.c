@@ -91,14 +91,13 @@ SDL_AppIterate(void *appstate)
   debug_assert(nowInNanoseconds > 0);
   u64 elapsedInNanoseconds = nowInNanoseconds - state->lastTime;
 #if IS_BUILD_DEBUG
-  // Prevent ∆t to be valid when debugging
+  // Prevent ∆t to be invalid when debugging
   if (elapsedInNanoseconds > 17000000 /* 17ms */)
     elapsedInNanoseconds = 16666666;
 #endif
 
-  state->inputIndex = state->inputIndex++ % ARRAY_COUNT(state->inputs);
-  game_input *newInput = state->inputs + state->inputIndex;
-  newInput->dt = (f32)elapsedInNanoseconds * 1e-9f;
+  game_input *input = state->inputs + state->inputIndex;
+  input->dt = (f32)elapsedInNanoseconds * 1e-9f;
 
   game_memory *memory = &state->memory;
   game_renderer *renderer = &state->renderer;
@@ -106,9 +105,17 @@ SDL_AppIterate(void *appstate)
   GameLibraryReload(&state->lib, state);
   pfnGameUpdateAndRender GameUpdateAndRender = state->lib.GameUpdateAndRender;
 #endif
-  GameUpdateAndRender(memory, newInput, renderer);
+  GameUpdateAndRender(memory, input, renderer);
 
   state->lastTime = nowInNanoseconds;
+
+  {
+    // Cycle inputs
+    state->inputIndex = (state->inputIndex + 1) % ARRAY_COUNT(state->inputs);
+    game_input *prevInput = input;
+    game_input *nextInput = state->inputs + state->inputIndex;
+    *nextInput = *prevInput;
+  }
 
   return SDL_APP_CONTINUE;
 }
@@ -170,9 +177,9 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     b8 isPressed = buttonEvent.down;
 
     if (buttonEvent.button == SDL_BUTTON_LEFT)
-      keyboardAndMouse->lb = isPressed;
+      keyboardAndMouse->lb = (u8)(isPressed & 0x1);
     else if (buttonEvent.button == SDL_BUTTON_RIGHT)
-      keyboardAndMouse->rb = isPressed;
+      keyboardAndMouse->rb = (u8)(isPressed & 0x1);
   } break;
 
   case SDL_EVENT_MOUSE_MOTION: {
@@ -234,37 +241,37 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     b8 isPressed = buttonEvent.down;
     switch (buttonEvent.button) {
     case SDL_GAMEPAD_BUTTON_SOUTH: {
-      controller->a = isPressed;
+      controller->a = (u8)(isPressed & 0x1);
     } break;
     case SDL_GAMEPAD_BUTTON_EAST: {
-      controller->b = isPressed;
+      controller->b = (u8)(isPressed & 0x1);
     } break;
     case SDL_GAMEPAD_BUTTON_WEST: {
-      controller->x = isPressed;
+      controller->x = (u8)(isPressed & 0x1);
     } break;
     case SDL_GAMEPAD_BUTTON_NORTH: {
-      controller->y = isPressed;
+      controller->y = (u8)(isPressed & 0x1);
     } break;
     case SDL_GAMEPAD_BUTTON_BACK: {
-      controller->back = isPressed;
+      controller->back = (u8)(isPressed & 0x1);
     } break;
     case SDL_GAMEPAD_BUTTON_GUIDE: {
-      controller->home = isPressed;
+      controller->home = (u8)(isPressed & 0x1);
     } break;
     case SDL_GAMEPAD_BUTTON_START: {
-      controller->start = isPressed;
+      controller->start = (u8)(isPressed & 0x1);
     } break;
     case SDL_GAMEPAD_BUTTON_LEFT_STICK: {
-      controller->ls = isPressed;
+      controller->ls = (u8)(isPressed & 0x1);
     } break;
     case SDL_GAMEPAD_BUTTON_RIGHT_STICK: {
-      controller->rs = isPressed;
+      controller->rs = (u8)(isPressed & 0x1);
     } break;
     case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: {
-      controller->lb = isPressed;
+      controller->lb = (u8)(isPressed & 0x1);
     } break;
     case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: {
-      controller->rb = isPressed;
+      controller->rb = (u8)(isPressed & 0x1);
     } break;
     case SDL_GAMEPAD_BUTTON_DPAD_UP: {
       controller->lsY = (f32)isPressed;
