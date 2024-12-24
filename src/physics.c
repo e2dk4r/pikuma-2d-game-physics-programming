@@ -1,6 +1,95 @@
 #include "physics.h"
 #include "math.h"
 
+static u8 *
+VolumeGetType(volume *volume)
+{
+  u8 *ptr = (u8 *)volume + sizeof(*volume);
+  return ptr;
+}
+
+static volume_circle *
+VolumeGetCircle(volume *volume)
+{
+  return (volume_circle *)VolumeGetType(volume);
+}
+
+static volume_polygon *
+VolumeGetPolygon(volume *volume)
+{
+  return (volume_polygon *)VolumeGetType(volume);
+}
+
+static volume_box *
+VolumeGetBox(volume *volume)
+{
+  return (volume_box *)VolumeGetType(volume);
+}
+
+static volume *
+Volume(memory_arena *memory, volume_type type, u64 typeSize)
+{
+  volume *result = 0;
+
+  u64 size = sizeof(*result) + typeSize;
+  result = MemoryArenaPushUnaligned(memory, size);
+  result->type = type;
+
+  return result;
+}
+
+static volume *
+VolumeCircle(memory_arena *memory, f32 radius)
+{
+  volume_circle *circle;
+  volume *volume = Volume(memory, VOLUME_TYPE_CIRCLE, sizeof(*circle));
+  if (!volume)
+    return 0;
+
+  circle = (void *)volume + sizeof(*volume);
+  circle->radius = radius;
+
+  return volume;
+}
+
+static volume *
+VolumePolygon(memory_arena *memory, u32 vertexCount, v2 verticies[static vertexCount])
+{
+  volume_polygon *polygon;
+  volume *volume = Volume(memory, VOLUME_TYPE_CIRCLE, sizeof(*polygon));
+  if (!volume)
+    return 0;
+
+  polygon = (void *)volume + sizeof(*volume);
+
+  polygon->vertexCount = vertexCount;
+  v2 *allocatedVerticies = MemoryArenaPushUnaligned(memory, sizeof(*allocatedVerticies) * polygon->vertexCount);
+  for (u32 vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
+    allocatedVerticies[vertexIndex] = verticies[vertexIndex];
+  }
+  polygon->verticies = allocatedVerticies;
+
+  return volume;
+}
+
+static volume *
+VolumeBox(memory_arena *memory, v2 verticies[static 4])
+{
+  volume_polygon *box;
+  volume *volume = Volume(memory, VOLUME_TYPE_BOX, sizeof(*box));
+  if (!volume)
+    return 0;
+
+  box = (void *)volume + sizeof(*volume);
+
+  u32 vertexCount = 4;
+  for (u32 vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
+    box->verticies[vertexIndex] = verticies[vertexIndex];
+  }
+
+  return volume;
+}
+
 static v2
 GenerateWeightForce(struct entity *entity)
 {

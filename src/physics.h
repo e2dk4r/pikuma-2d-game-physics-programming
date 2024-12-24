@@ -1,5 +1,8 @@
 #pragma once
 
+#include "memory.h"
+#include "type.h"
+
 /*
  * Physics assumes
  * - Every unit is in SI units.
@@ -9,6 +12,46 @@
  *     y positive means up, negative down
  */
 
+typedef enum volume_type {
+  VOLUME_TYPE_CIRCLE,
+  VOLUME_TYPE_POLYGON,
+  VOLUME_TYPE_BOX,
+} volume_type;
+
+// Tagged union. see: volume_*
+typedef struct volume {
+  volume_type type;
+} volume;
+
+typedef struct volume_circle {
+  f32 radius;
+} volume_circle;
+
+typedef struct volume_polygon {
+  v2 *verticies;
+  u32 vertexCount;
+} volume_polygon;
+
+typedef struct volume_box {
+  v2 verticies[4];
+} volume_box;
+
+static volume_circle *
+VolumeGetCircle(volume *volume);
+static volume_polygon *
+VolumeGetPolygon(volume *volume);
+static volume_box *
+VolumeGetBox(volume *volume);
+
+static volume *
+VolumeCircle(memory_arena *memory, f32 radius);
+
+static volume *
+VolumePolygon(memory_arena *memory, u32 vertexCount, v2 verticies[static vertexCount]);
+
+static volume *
+VolumeBox(memory_arena *memory, v2 verticies[static 4]);
+
 typedef struct entity {
   v2 position;     // unit: m
   v2 velocity;     // unit: m/s
@@ -16,6 +59,8 @@ typedef struct entity {
   f32 mass;        // unit: kg
   f32 invMass;     // computed from 1/mass. unit: kg⁻¹
   v2 netForce;
+
+  volume *volume;
 } entity;
 
 /* Generate weight force */

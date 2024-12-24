@@ -15,7 +15,7 @@
     __ASSERT__;                                                                                                        \
   }
 
-#define breakpoint() __ASSERT__
+#define breakpoint(...) __ASSERT__
 
 #else
 

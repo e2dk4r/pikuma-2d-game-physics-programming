@@ -29,36 +29,28 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     };
     memory_arena *worldArena = &state->worldArena;
 
+    // entropy
     state->effectsEntropy = RandomSeed(1);
     random_series *effectsEntropy = &state->effectsEntropy;
 
-    /* 4 particles placed in square form and connected by 6 springs
-     * ┌───┐
-     * │╲ ╱│
-     * │ ╳ │
-     * │╱ ╲│
-     * └───┘
-     */
-
+    // entities
     state->entityMax = 4;
-    state->entityCount = 4;
     state->entities = MemoryArenaPush(worldArena, sizeof(*state->entities) * state->entityMax, 4);
-    v2 positions[] = {
-        {0.0f, 0.0f},
-        {1.0f, 0.0f},
-        {1.0f, 1.0f},
-        {0.0f, 1.0f},
-    };
-    for (u32 entityIndex = 0; entityIndex < state->entityCount; entityIndex++) {
-      struct entity *entity = state->entities + entityIndex;
-      *entity = (struct entity){
-          .position = positions[entityIndex],
-          // .mass = RandomBetween(effectsEntropy, 1.0f, 5.0f),
-          .mass = 2.0f,
-      };
+    u32 entityIndex = 0;
+
+    {
+      entity *entity = state->entities + entityIndex;
+
+      entity->mass = RandomBetween(effectsEntropy, 1.0f, 10.0f);
       entity->invMass = 1.0f / entity->mass;
+      entity->volume = VolumeCircle(worldArena, 0.5f);
+
+      entityIndex++;
     }
 
+    state->entityCount = entityIndex;
+
+    // state is ready
     state->isInitialized = 1;
   }
 
@@ -175,37 +167,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     v2 dragForce = GenerateDragForce(entity, 0.001f);
     v2_add_ref(&entity->netForce, dragForce);
 
-    // apply spring force
-    // explanation:
-    // - "Multiple spring-mass system" @00:00:28
-    //   - https://www.youtube.com/watch?v=3wfMPxORS-4
-    //   - https://cdn.kastatic.org/ka-youtube-converted/3wfMPxORS-4.mp4/3wfMPxORS-4.mp4
-    f32 springConstant = 1000.0f;
-    f32 restLength = 1.0f;
-    f32 dampingConstant = 8.5f;
-
-    v2 anchorPosition;
-    v2 springForce;
-    v2 dampingForce;
-
-    anchorPosition = nextEntity->position;
-    springForce = GenerateSpringForce(entity, anchorPosition, restLength, springConstant);
-    v2_add_ref(&entity->netForce, springForce);
-    v2_add_ref(&nextEntity->netForce, v2_neg(springForce));
-    dampingForce = GenerateDampingForce(entity, dampingConstant);
+    // apply damping force
+    v2 dampingForce = GenerateDampingForce(entity, 0.8f);
     v2_add_ref(&entity->netForce, dampingForce);
-    v2_add_ref(&nextEntity->netForce, v2_neg(dampingForce));
-
-    struct entity *crossEntity = entityIndex + 2 < state->entityCount ? state->entities + entityIndex + 2 : 0;
-    if (crossEntity) {
-      anchorPosition = crossEntity->position;
-      springForce = GenerateSpringForce(entity, anchorPosition, restLength, springConstant);
-      v2_add_ref(&entity->netForce, springForce);
-      v2_add_ref(&crossEntity->netForce, v2_neg(springForce));
-      dampingForce = GenerateDampingForce(entity, dampingConstant);
-      v2_add_ref(&entity->netForce, dampingForce);
-      v2_add_ref(&crossEntity->netForce, v2_neg(dampingForce));
-    }
   }
 
   /*
@@ -239,7 +203,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
 #if (1 && IS_BUILD_DEBUG)
     {
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("particle #"));
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("entity #"));
       StringBuilderAppendU64(sb, entityIndex + 1);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
@@ -322,21 +286,17 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     struct entity *entity = state->entities + entityIndex;
 
     f32 massNormalized = entity->mass / 10.0f /* maximum mass */;
-    u32 colorIndex = (u32)(Lerp(0.0f, ARRAY_COUNT(COLORS) / 11, massNormalized));
-    const v4 *color = COLORS + colorIndex * 11 + 6;
+    u32 colorIndex = (u32)(Lerp(0.0f, COLOR_PALETTE_COUNT, massNormalized));
+    const v4 *color = COLORS + colorIndex * COLOR_PALETTE_COUNT + COLOR_LEVEL_COUNT / 2;
 
-    DrawCircle(renderer, entity->position, 0.01f + entity->mass / 10.0f, *color);
-
-    struct entity *nextEntity = entityIndex + 1 < state->entityCount ? state->entities + entityIndex + 1 : 0;
-    if (nextEntity) {
-      DrawLine(renderer, entity->position, nextEntity->position, COLOR_RED_500, 1);
-    } else {
-      struct entity *firstEntity = state->entities + 0;
-      DrawLine(renderer, entity->position, firstEntity->position, COLOR_RED_500, 1);
-    }
-    struct entity *crossEntity = entityIndex + 2 < state->entityCount ? state->entities + entityIndex + 2 : 0;
-    if (crossEntity) {
-      DrawLine(renderer, entity->position, crossEntity->position, COLOR_RED_500, 1);
+    switch (entity->volume->type) {
+    case VOLUME_TYPE_CIRCLE: {
+      volume_circle *circle = VolumeGetCircle(entity->volume);
+      DrawCircle(renderer, entity->position, circle->radius, *color);
+    } break;
+    default: {
+      breakpoint("drawing volume type not implemented");
+    } break;
     }
   }
 
