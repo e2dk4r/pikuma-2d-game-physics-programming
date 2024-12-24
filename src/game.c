@@ -281,6 +281,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     DrawLine(renderer, lastEntity->position, mousePosition, COLOR_BLUE_300, 1);
   }
 
+  global f32 angle = 0.0f;
+  angle += 1.0f * dt;
   // entities
   for (u32 entityIndex = 0; entityIndex < state->entityCount; entityIndex++) {
     struct entity *entity = state->entities + entityIndex;
@@ -292,7 +294,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     switch (entity->volume->type) {
     case VOLUME_TYPE_CIRCLE: {
       volume_circle *circle = VolumeGetCircle(entity->volume);
-      DrawCircle(renderer, entity->position, circle->radius, *color);
+      DrawCircle(renderer, entity->position, circle->radius, angle, *color);
     } break;
     default: {
       breakpoint("drawing volume type not implemented");

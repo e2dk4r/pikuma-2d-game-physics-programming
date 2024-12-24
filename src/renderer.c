@@ -41,11 +41,11 @@ DrawLine(game_renderer *gameRenderer, v2 point1, v2 point2, v4 color, f32 width)
 }
 
 static void
-DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color)
+DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, f32 angle, v4 color)
 {
   __cleanup_memory_temp__ memory_temp memory = MemoryTempBegin(&gameRenderer->memory);
 
-  u32 pointMax = 1000; // TODO: find maxiumum points needed from radius
+  u32 pointMax = 4096; // TODO: find maxiumum points needed from radius
   u32 pointCount = 0;
   SDL_FPoint *points = MemoryArenaPush(memory.arena, sizeof(*points) * pointMax, 4);
 
@@ -87,6 +87,14 @@ DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color)
   f32 radiusInPixels = radius * PIXELS_PER_METER;
   v2 positionInScreenSpace = ToScreenSpace(gameRenderer, position);
 
+  // draw line to show the angle
+  v2 angleLine[] = {
+      // start point
+      {positionInScreenSpace.x, positionInScreenSpace.y},
+      // end point
+      {positionInScreenSpace.x + radiusInPixels * Cos(angle), positionInScreenSpace.y - radiusInPixels * Sin(angle)},
+  };
+
   // see:
   // - http://members.chello.at/~easyfilter/Bresenham.pdf
   // - https://www.youtube.com/watch?v=CceepU1vIKo "NoBS Code - Bresenham's Line Algorithm - Demystified Step by Step"
@@ -118,7 +126,12 @@ DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color)
 
   SDL_Renderer *renderer = gameRenderer->renderer;
   SDL_SetRenderDrawColorFloat(renderer, color.r, color.g, color.b, color.a);
-  SDL_RenderLines(renderer, points, (s32)pointCount);
+  SDL_RenderPoints(renderer, points, (s32)pointCount);
+  SDL_RenderLine(renderer,
+                 // start point
+                 angleLine[0].x, angleLine[0].y,
+                 // end point
+                 angleLine[1].x, angleLine[1].y);
 }
 
 static void

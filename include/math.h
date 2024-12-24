@@ -160,6 +160,18 @@ SquareRoot(f32 value)
   return sqrtf(value);
 }
 
+static inline f32
+Cos(f32 value)
+{
+  return __builtin_cosf(value);
+}
+
+static inline f32
+Sin(f32 value)
+{
+  return __builtin_sinf(value);
+}
+
 typedef struct v2 {
   union {
     struct {
