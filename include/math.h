@@ -151,13 +151,10 @@ bsrl(u64 x)
   return kDebruijn[(x * 0x03f79d71b4cb0a89ull) >> 58];
 }
 
-extern f32
-sqrtf(f32 value);
-
 static inline f32
 SquareRoot(f32 value)
 {
-  return sqrtf(value);
+  return __builtin_sqrtf(value);
 }
 
 static inline f32
