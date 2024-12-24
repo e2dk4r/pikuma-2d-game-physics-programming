@@ -13,23 +13,23 @@ typedef struct {
 #define PIXELS_PER_METER 60
 #define METERS_PER_PIXEL (1.0f / PIXELS_PER_METER)
 
-void
+static void
 RenderFrame(game_renderer *renderer);
 
-void
+static void
 ClearScreen(game_renderer *renderer, v4 color);
 
-void
+static void
 DrawLine(game_renderer *renderer, v2 from, v2 to, v4 color, f32 width);
 
-void
+static void
 DrawCircle(game_renderer *renderer, v2 position, f32 radius, v4 color);
 
-void
+static void
 DrawRect(game_renderer *renderer, rect rect, v4 color);
 
-void
+static void
 DrawCrosshair(game_renderer *renderer, v2 position, f32 dim, v4 color);
 
-rect
+static rect
 RendererGetSurfaceRect(game_renderer *renderer);

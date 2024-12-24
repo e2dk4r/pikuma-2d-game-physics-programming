@@ -14,13 +14,13 @@ ToScreenSpace(game_renderer *gameRenderer, v2 point)
   return v2_add(origin, v2_scale(pointInScreenCoordinate, PIXELS_PER_METER));
 }
 
-void
+static void
 RenderFrame(game_renderer *gameRenderer)
 {
   SDL_RenderPresent(gameRenderer->renderer);
 }
 
-void
+static void
 ClearScreen(game_renderer *gameRenderer, v4 color)
 {
   SDL_Renderer *renderer = gameRenderer->renderer;
@@ -28,7 +28,7 @@ ClearScreen(game_renderer *gameRenderer, v4 color)
   SDL_RenderClear(renderer);
 }
 
-void
+static void
 DrawLine(game_renderer *gameRenderer, v2 point1, v2 point2, v4 color, f32 width)
 {
   SDL_Renderer *renderer = gameRenderer->renderer;
@@ -40,7 +40,7 @@ DrawLine(game_renderer *gameRenderer, v2 point1, v2 point2, v4 color, f32 width)
   SDL_RenderLine(renderer, point1InScreenSpace.x, point1InScreenSpace.y, point2InScreenSpace.x, point2InScreenSpace.y);
 }
 
-void
+static void
 DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color)
 {
   __cleanup_memory_temp__ memory_temp memory = MemoryTempBegin(&gameRenderer->memory);
@@ -121,7 +121,7 @@ DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, v4 color)
   SDL_RenderLines(renderer, points, (s32)pointCount);
 }
 
-void
+static void
 DrawRect(game_renderer *gameRenderer, rect rect, v4 color)
 {
   debug_assert(rect.min.x != rect.max.x && rect.min.y != rect.max.y && "invalid rect");
@@ -142,7 +142,7 @@ DrawRect(game_renderer *gameRenderer, rect rect, v4 color)
   SDL_RenderFillRect(renderer, &sdlRect);
 }
 
-void
+static void
 DrawCrosshair(game_renderer *gameRenderer, v2 position, f32 dim, v4 color)
 {
   f32 dimInPixels = dim * 0.5f * PIXELS_PER_METER;
@@ -158,7 +158,7 @@ DrawCrosshair(game_renderer *gameRenderer, v2 position, f32 dim, v4 color)
   SDL_RenderFillRects(renderer, rects, ARRAY_COUNT(rects));
 }
 
-rect
+static rect
 RendererGetSurfaceRect(game_renderer *renderer)
 {
   v2 screenCenterInMeters = v2_scale(renderer->screenCenter, METERS_PER_PIXEL);
