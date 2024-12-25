@@ -11,18 +11,21 @@ VolumeGetType(volume *volume)
 static volume_circle *
 VolumeGetCircle(volume *volume)
 {
+  debug_assert(volume->type == VOLUME_TYPE_CIRCLE);
   return (volume_circle *)VolumeGetType(volume);
 }
 
 static volume_polygon *
 VolumeGetPolygon(volume *volume)
 {
+  debug_assert(volume->type == VOLUME_TYPE_POLYGON);
   return (volume_polygon *)VolumeGetType(volume);
 }
 
 static volume_box *
 VolumeGetBox(volume *volume)
 {
+  debug_assert(volume->type == VOLUME_TYPE_BOX);
   return (volume_box *)VolumeGetType(volume);
 }
 
@@ -46,7 +49,7 @@ VolumeCircle(memory_arena *memory, f32 radius)
   if (!volume)
     return 0;
 
-  circle = (void *)volume + sizeof(*volume);
+  circle = VolumeGetCircle(volume);
   circle->radius = radius;
 
   return volume;
@@ -56,11 +59,11 @@ static volume *
 VolumePolygon(memory_arena *memory, u32 vertexCount, v2 verticies[static vertexCount])
 {
   volume_polygon *polygon;
-  volume *volume = Volume(memory, VOLUME_TYPE_CIRCLE, sizeof(*polygon));
+  volume *volume = Volume(memory, VOLUME_TYPE_POLYGON, sizeof(*polygon));
   if (!volume)
     return 0;
 
-  polygon = (void *)volume + sizeof(*volume);
+  polygon = VolumeGetPolygon(volume);
 
   polygon->vertexCount = vertexCount;
   v2 *allocatedVerticies = MemoryArenaPushUnaligned(memory, sizeof(*allocatedVerticies) * polygon->vertexCount);
@@ -73,21 +76,66 @@ VolumePolygon(memory_arena *memory, u32 vertexCount, v2 verticies[static vertexC
 }
 
 static volume *
-VolumeBox(memory_arena *memory, v2 verticies[static 4])
+VolumeBox(memory_arena *memory, f32 width, f32 height)
 {
-  volume_polygon *box;
+  volume_box *box;
   volume *volume = Volume(memory, VOLUME_TYPE_BOX, sizeof(*box));
   if (!volume)
     return 0;
 
-  box = (void *)volume + sizeof(*volume);
-
-  u32 vertexCount = 4;
-  for (u32 vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
-    box->verticies[vertexIndex] = verticies[vertexIndex];
-  }
+  box = VolumeGetBox(volume);
+  box->width = width;
+  box->height = height;
 
   return volume;
+}
+
+static inline f32
+VolumeCircleGetMomentOfInertia(volume *volume, f32 mass)
+{
+  volume_circle *circle = VolumeGetCircle(volume);
+  /*
+   * Thin, solid disk of radius r and mass m.
+   * see: https://en.wikipedia.org/wiki/List_of_moments_of_inertia
+   *
+   * I = ½ m r²
+   */
+  f32 I = 0.5f * mass * Square(circle->radius);
+  return I;
+}
+
+static inline f32
+VolumeBoxGetMomentOfInertia(volume *volume, f32 mass)
+{
+  volume_box *box = VolumeGetBox(volume);
+
+  /*
+   * Thin rectangular plate of height h, width w and mass m (Axis of rotation
+   * at the center)
+   * see: https://en.wikipedia.org/wiki/List_of_moments_of_inertia
+   *
+   * I = (1/12) m (h² + w²)
+   */
+  f32 I = (1.0f / 12.0f) * mass * (Square(box->width) + Square(box->height));
+  return I;
+}
+
+static inline f32
+VolumeGetMomentOfInertia(volume *volume, f32 mass)
+{
+  switch (volume->type) {
+  case VOLUME_TYPE_CIRCLE: {
+    return VolumeCircleGetMomentOfInertia(volume, mass);
+  } break;
+  case VOLUME_TYPE_BOX: {
+    return VolumeBoxGetMomentOfInertia(volume, mass);
+  } break;
+
+  default: {
+    breakpoint("don't know how to calculate moment of inertia for this volume");
+    return 0.0f;
+  } break;
+  }
 }
 
 static v2

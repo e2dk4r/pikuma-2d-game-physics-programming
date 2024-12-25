@@ -44,6 +44,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       entity->mass = RandomBetween(effectsEntropy, 1.0f, 10.0f);
       entity->invMass = 1.0f / entity->mass;
       entity->volume = VolumeCircle(worldArena, 0.5f);
+      entity->I = VolumeGetMomentOfInertia(entity->volume, entity->mass);
+      entity->invI = 1.0f / entity->I;
 
       entityIndex++;
     }
@@ -170,6 +172,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     // apply damping force
     v2 dampingForce = GenerateDampingForce(entity, 0.8f);
     v2_add_ref(&entity->netForce, dampingForce);
+
+    f32 torque = 0.5f;
+    entity->netTorque += torque;
   }
 
   /*
@@ -179,27 +184,80 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     struct entity *entity = state->entities + entityIndex;
     b8 isLastEntity = entityIndex == state->entityCount - 1;
 
-#if 0
-    // constant acceleration
-    // acceleration = f''(t) = a
-    f32 speed = 30.0f; // unit: m/s
-    entity->acceleration = v2_scale((v2){1.0f, 0.0f}, speed);
-#endif
+    /* LINEAR KINEMATICS
+     *
+     * The rate at which "position" p changes is called "velocity" v.
+     *   v = ∆p/∆t
+     *
+     * The rate at which v changes is called "acceleration" a.
+     *   a = ∆v/∆t
+     *
+     * a = f''(t)
+     * v = ∫f''(t)
+     *   = f'(t)
+     *   = at + v₀
+     * p = ∫f'(t)
+     *   = f(t)
+     *   = ½at² + vt + p₀
+     *
+     * Newton's Law of motion
+     *   F = ma
+     *   where F is force,
+     *         m is mass,
+     *         a is acceleration.
+     *
+     * a = F/m
+     */
 
-    // F = ma
     // a = F/m
     entity->acceleration = v2_scale(entity->netForce, entity->invMass);
 
-    // velocity     = ∫f''(t)
-    //              = f'(t) = at + v₀
+    // v = at + v₀
     v2_add_ref(&entity->velocity, v2_scale(entity->acceleration, dt));
-    // position     = ∫f'(t)
-    //              = f(t) = ½at² + vt + p₀
+
+    // p = ½at² + vt + p₀
     v2_add_ref(&entity->position, v2_add(
                                       // ½at²
                                       v2_scale(entity->acceleration, 0.5f * Square(dt)),
                                       // + vt
                                       v2_scale(entity->velocity, dt)));
+
+    /* ANGULAR KINEMATICS
+     *
+     * As the body rotates, "angle" θ will change. The rate at which θ changes
+     * is called "angular velocity", ω.
+     *   ω = ∆θ/∆t
+     *
+     * Likewise as body rotates, the rate at which ω changes is called "angular
+     * acceleration", α.
+     *   α = ∆ω/∆t
+     *
+     * α = f''(t)
+     * ω = ∫f''(t)
+     *   = f'(t)
+     *   = αt + ω₀
+     * θ = ∫f'(t)
+     *   = ½αt² + ωt + θ₀
+     *
+     * Angular motion analogous to linear motion.
+     *   τ = I α
+     *   where τ is torque,
+     *           Rotational motion.
+     *         I is moment of inertia.
+     *           Measures how much an object "resists" to change its angular
+     *           acceleration.
+     *           a.k.a. angular mass
+     *           unit: kg m²
+     *
+     * α = τ/I
+     */
+
+    // α = τ/I
+    entity->angularAcceleration = entity->netTorque * entity->invI;
+    // ω = αt + ω₀
+    entity->angularVelocity += entity->angularAcceleration * dt;
+    // θ  = ½αt² + ωt + θ₀
+    entity->rotation += 0.5f * entity->angularAcceleration * Square(dt) + entity->angularVelocity * dt;
 
 #if (1 && IS_BUILD_DEBUG)
     {
@@ -244,6 +302,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
     // clear forces
     entity->netForce = (v2){0.0f, 0.0f};
+    entity->netTorque = 0.0f;
 
     /*
      * COLLISION
@@ -281,8 +340,6 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     DrawLine(renderer, lastEntity->position, mousePosition, COLOR_BLUE_300, 1);
   }
 
-  global f32 angle = 0.0f;
-  angle += 1.0f * dt;
   // entities
   for (u32 entityIndex = 0; entityIndex < state->entityCount; entityIndex++) {
     struct entity *entity = state->entities + entityIndex;
@@ -294,7 +351,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     switch (entity->volume->type) {
     case VOLUME_TYPE_CIRCLE: {
       volume_circle *circle = VolumeGetCircle(entity->volume);
-      DrawCircle(renderer, entity->position, circle->radius, angle, *color);
+      entity->angularAcceleration = -0.0f;
+      DrawCircle(renderer, entity->position, circle->radius, entity->rotation, *color);
     } break;
     default: {
       breakpoint("drawing volume type not implemented");

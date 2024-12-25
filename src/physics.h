@@ -33,7 +33,8 @@ typedef struct volume_polygon {
 } volume_polygon;
 
 typedef struct volume_box {
-  v2 verticies[4];
+  f32 width;
+  f32 height;
 } volume_box;
 
 static volume_circle *
@@ -50,15 +51,27 @@ static volume *
 VolumePolygon(memory_arena *memory, u32 vertexCount, v2 verticies[static vertexCount]);
 
 static volume *
-VolumeBox(memory_arena *memory, v2 verticies[static 4]);
+VolumeBox(memory_arena *memory, f32 width, f32 height);
+
+static f32
+VolumeGetMomentOfInertia(volume *volume, f32 mass);
 
 typedef struct entity {
+  /* LINEAR KINEMATICS */
   v2 position;     // unit: m
   v2 velocity;     // unit: m/s
   v2 acceleration; // unit: m/s²
   f32 mass;        // unit: kg
   f32 invMass;     // computed from 1/mass. unit: kg⁻¹
-  v2 netForce;
+  v2 netForce;     // sum of all forces applied
+
+  /* ANGULAR KINEMATICS */
+  f32 rotation;            // θ, unit: rad
+  f32 angularVelocity;     // ω, unit: rad/s
+  f32 angularAcceleration; // α, unit: rad/s²
+  f32 netTorque;           // sum of all torque forces applied
+  f32 I;                   // moment of inertia. unit: kg m²
+  f32 invI;                // computed from 1/I. unit: kg⁻¹ m⁻²
 
   volume *volume;
 } entity;
