@@ -272,7 +272,7 @@ if [ ! -e "$OutputDir" ]; then
   echo '*' > "$OutputDir/.gitignore"
 
   echo 'syntax: glob' > "$OutputDir/.hgignore"
-  echo '**/*' > "$OutputDir/.hgignore"
+  echo '**/*' >> "$OutputDir/.hgignore"
 fi
 
 IsOSLinux=$(StringEndsWith "$(uname)" 'Linux')
@@ -404,7 +404,7 @@ fi
 Log "================================================================"
 Log "Finished at $(date '+%Y-%m-%d %H:%M:%S')"
 
-if [ ! -e tags ] && [ $IsBuildDebug -ne 0 ]; then
+if [ ! -e tags ] && [ $IsBuildDebug -eq 1 ]; then
   src=""
   src="$src $OutputDir/3rdparty/SDL3-$LIBSDL_VERSION-install/include/SDL3/SDL_assert.h"
   src="$src $OutputDir/3rdparty/SDL3-$LIBSDL_VERSION-install/include/SDL3/SDL_atomic.h"
