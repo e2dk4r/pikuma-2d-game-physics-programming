@@ -33,7 +33,7 @@ static void
 DrawLine(game_renderer *renderer, v2 from, v2 to, v4 color, f32 width);
 
 static void
-DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, f32 angle, v4 color);
+DrawCircle(game_renderer *renderer, v2 position, f32 radius, f32 angle, v4 color);
 
 static void
 DrawRect(game_renderer *renderer, rect rect, v4 color);
