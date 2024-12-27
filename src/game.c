@@ -30,26 +30,43 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     memory_arena *worldArena = &state->worldArena;
 
     // entropy
-    state->effectsEntropy = RandomSeed(1);
+    state->effectsEntropy = RandomSeed(29);
     random_series *effectsEntropy = &state->effectsEntropy;
 
     // entities
     state->entityMax = 4;
     state->entities = MemoryArenaPush(worldArena, sizeof(*state->entities) * state->entityMax, 4);
-    u32 entityIndex = 0;
+    u32 entityIndex = 1; // 0 is invalid entity index;
 
     if (1) { // circle
       entity *entity = state->entities + entityIndex;
 
       entity->mass = RandomBetween(effectsEntropy, 1.0f, 10.0f);
       entity->invMass = 1.0f / entity->mass;
-      entity->volume = VolumeCircle(worldArena, 0.5f);
+      entity->position = V2(RandomBetween(effectsEntropy, 3.0f, 5.0f), 0.0f);
+      entity->volume = VolumeCircle(worldArena, RandomBetween(effectsEntropy, 0.5f, 3.0f));
       entity->I = VolumeGetMomentOfInertia(entity->volume, entity->mass);
       entity->invI = 1.0f / entity->I;
 
+      entity->color = COLOR_PURPLE_300;
+
       entityIndex++;
     }
-    if (1) { // box
+    if (1) { // circle
+      entity *entity = state->entities + entityIndex;
+
+      entity->mass = RandomBetween(effectsEntropy, 1.0f, 10.0f);
+      entity->invMass = 1.0f / entity->mass;
+      entity->position = V2(RandomBetween(effectsEntropy, -5.0f, -3.0f), 0.0f);
+      entity->volume = VolumeCircle(worldArena, RandomBetween(effectsEntropy, 0.5f, 3.0f));
+      entity->I = VolumeGetMomentOfInertia(entity->volume, entity->mass);
+      entity->invI = 1.0f / entity->I;
+
+      entity->color = COLOR_BLUE_300;
+
+      entityIndex++;
+    }
+    if (0) { // box
       entity *entity = state->entities + entityIndex;
 
       entity->mass = RandomBetween(effectsEntropy, 1.0f, 10.0f);
@@ -161,31 +178,21 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   /*
    * - Apply forces
    */
-  for (u32 entityIndex = 0; entityIndex < state->entityCount; entityIndex++) {
+  for (u32 entityIndex = 1; entityIndex < state->entityCount; entityIndex++) {
     struct entity *entity = state->entities + entityIndex;
     b8 isLastEntity = entityIndex == state->entityCount - 1;
-    struct entity *nextEntity = state->entities + (entityIndex + 1) % state->entityCount;
 
     // apply input force
     if (isLastEntity)
       v2_add_ref(&entity->netForce, v2_scale(inputForce, 50.0f));
 
-    // apply weight force
-    v2 weightForce = GenerateWeightForce(entity);
-    v2_add_ref(&entity->netForce, weightForce);
-    if (IsPointInsideRect(entity->position, groundRect))
-      v2_add_ref(&entity->netForce, v2_neg(weightForce));
-
     // apply drag force
-    v2 dragForce = GenerateDragForce(entity, 0.001f);
+    v2 dragForce = GenerateDragForce(entity, 3.1f);
     v2_add_ref(&entity->netForce, dragForce);
 
     // apply damping force
     v2 dampingForce = GenerateDampingForce(entity, 0.8f);
     v2_add_ref(&entity->netForce, dampingForce);
-
-    f32 torque = 5.0f * Sin(state->time);
-    entity->netTorque += torque;
 
 #if 0
     // do not apply any force
@@ -197,7 +204,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   /*
    * - Integrate applied forces
    */
-  for (u32 entityIndex = 0; entityIndex < state->entityCount; entityIndex++) {
+  for (u32 entityIndex = 1; entityIndex < state->entityCount; entityIndex++) {
     struct entity *entity = state->entities + entityIndex;
     b8 isLastEntity = entityIndex == state->entityCount - 1;
 
@@ -287,6 +294,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
                      : entity->volume->type == VOLUME_TYPE_BOX  ? &STRING_FROM_ZERO_TERMINATED("box")
                                                                 : &STRING_FROM_ZERO_TERMINATED("unknown");
       StringBuilderAppendString(sb, type);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" mass: "));
+      StringBuilderAppendF32(sb, entity->mass, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("kg"));
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  pos: "));
@@ -341,6 +351,50 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     /*
      * COLLISION
      */
+
+    for (u32 entityBIndex = 1; entityBIndex < state->entityCount; entityBIndex++) {
+      u32 entityAIndex = entityIndex;
+      // entity cannot collide with itself
+      if (entityBIndex == entityAIndex)
+        continue;
+
+      struct entity *entityA = entity;
+      struct entity *entityB = state->entities + entityBIndex;
+      b8 isColliding = 0;
+
+      if (entityA->volume->type == VOLUME_TYPE_CIRCLE && entityB->volume->type == VOLUME_TYPE_CIRCLE) {
+        volume_circle *circleA = VolumeGetCircle(entityA->volume);
+        volume_circle *circleB = VolumeGetCircle(entityB->volume);
+
+        v2 distance = v2_sub(entityB->position, entityA->position);
+        isColliding = v2_length_square(distance) <= Square(circleA->radius + circleB->radius);
+      }
+
+      collision_map *collision = &state->collisionMap;
+      if (isColliding) {
+        collision->a = entityAIndex;
+        collision->b = entityBIndex;
+      } else {
+        collision->a = 0;
+        collision->b = 0;
+      }
+
+#if (1 && IS_BUILD_DEBUG)
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("Entity #"));
+      StringBuilderAppendU64(sb, entityAIndex + 1);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" and #"));
+      StringBuilderAppendU64(sb, entityBIndex + 1);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" is "));
+      if (isColliding)
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("colliding."));
+      else
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("NOT colliding."));
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+      string string = StringBuilderFlush(sb);
+      write(STDOUT_FILENO, string.value, string.length);
+#endif
+    }
+
     // TODO: Ground collision is broken
     if (IsPointInsideRect(entity->position, groundRect)) {
       v2 groundNormal = {0.0f, 1.0f};
@@ -375,24 +429,24 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   }
 
   // entities
-  for (u32 entityIndex = 0; entityIndex < state->entityCount; entityIndex++) {
+  for (u32 entityIndex = 1; entityIndex < state->entityCount; entityIndex++) {
     struct entity *entity = state->entities + entityIndex;
 
-    f32 massNormalized = entity->mass / 10.0f /* maximum mass */;
-    u32 colorIndex = (u32)(Lerp(0.0f, COLOR_PALETTE_COUNT, massNormalized));
-    const v4 *color = COLORS + colorIndex * COLOR_PALETTE_COUNT + COLOR_LEVEL_COUNT / 2;
+    v4 color = entity->color;
+    if (state->collisionMap.a == entityIndex || state->collisionMap.b == entityIndex)
+      color = COLOR_RED_500;
 
     switch (entity->volume->type) {
     case VOLUME_TYPE_CIRCLE: {
       volume_circle *circle = VolumeGetCircle(entity->volume);
-      DrawCircle(renderer, entity->position, circle->radius, entity->rotation, *color);
+      DrawCircle(renderer, entity->position, circle->radius, entity->rotation, color);
     } break;
     case VOLUME_TYPE_BOX: {
       volume_box *box = VolumeGetBox(entity->volume);
       v2 dim = {box->width, box->height};
       rect rect = RectCenterDim(entity->position, dim);
       f32 rotation = entity->rotation;
-      DrawRectRotated(renderer, rect, rotation, COLOR_GREEN_600);
+      DrawRectRotated(renderer, rect, rotation, color);
     } break;
     default: {
       breakpoint("drawing volume type not implemented");
