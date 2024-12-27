@@ -179,6 +179,12 @@ typedef struct v2 {
   };
 } v2;
 
+static inline v2
+V2(f32 x, f32 y)
+{
+  return (v2){x, y};
+}
+
 static inline void
 v2_add_ref(v2 *a, v2 b)
 {

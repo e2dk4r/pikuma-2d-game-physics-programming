@@ -7,6 +7,9 @@
  * angle is in radians until otherwise said
  */
 
+// TODO: Scale and rotate by using specified coordinate system.
+//       origin, xAxis, yAxis
+
 #include "math.h"
 #include "memory.h"
 #include <SDL3/SDL.h>
@@ -34,6 +37,9 @@ DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, f32 angle, v4 c
 
 static void
 DrawRect(game_renderer *renderer, rect rect, v4 color);
+
+static void
+DrawRectRotated(game_renderer *renderer, rect rect, f32 rotation, v4 color);
 
 static void
 DrawCrosshair(game_renderer *renderer, v2 position, f32 dim, v4 color);

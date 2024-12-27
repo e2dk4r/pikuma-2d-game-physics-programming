@@ -38,12 +38,23 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     state->entities = MemoryArenaPush(worldArena, sizeof(*state->entities) * state->entityMax, 4);
     u32 entityIndex = 0;
 
-    {
+    if (1) { // circle
       entity *entity = state->entities + entityIndex;
 
       entity->mass = RandomBetween(effectsEntropy, 1.0f, 10.0f);
       entity->invMass = 1.0f / entity->mass;
       entity->volume = VolumeCircle(worldArena, 0.5f);
+      entity->I = VolumeGetMomentOfInertia(entity->volume, entity->mass);
+      entity->invI = 1.0f / entity->I;
+
+      entityIndex++;
+    }
+    if (1) { // box
+      entity *entity = state->entities + entityIndex;
+
+      entity->mass = RandomBetween(effectsEntropy, 1.0f, 10.0f);
+      entity->invMass = 1.0f / entity->mass;
+      entity->volume = VolumeBox(worldArena, 1.0f, 1.0f);
       entity->I = VolumeGetMomentOfInertia(entity->volume, entity->mass);
       entity->invI = 1.0f / entity->I;
 
@@ -173,8 +184,14 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     v2 dampingForce = GenerateDampingForce(entity, 0.8f);
     v2_add_ref(&entity->netForce, dampingForce);
 
-    f32 torque = 0.5f;
+    f32 torque = 5.0f * Sin(state->time);
     entity->netTorque += torque;
+
+#if 0
+    // do not apply any force
+    entity->netForce = V2(0.0f, 0.0f);
+    entity->netTorque = 0.0f;
+#endif
   }
 
   /*
@@ -265,6 +282,13 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       StringBuilderAppendU64(sb, entityIndex + 1);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  volume: "));
+      string *type = entity->volume->type == VOLUME_TYPE_CIRCLE ? &STRING_FROM_ZERO_TERMINATED("circle")
+                     : entity->volume->type == VOLUME_TYPE_BOX  ? &STRING_FROM_ZERO_TERMINATED("box")
+                                                                : &STRING_FROM_ZERO_TERMINATED("unknown");
+      StringBuilderAppendString(sb, type);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  pos: "));
       StringBuilderAppendF32(sb, entity->position.x, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
@@ -283,10 +307,20 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       StringBuilderAppendF32(sb, entity->acceleration.y, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  Fnet:"));
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  F:   "));
       StringBuilderAppendF32(sb, entity->netForce.x, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
       StringBuilderAppendF32(sb, entity->netForce.y, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  θ: "));
+      StringBuilderAppendF32(sb, entity->rotation, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  ω: "));
+      StringBuilderAppendF32(sb, entity->angularVelocity, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  α: "));
+      StringBuilderAppendF32(sb, entity->angularAcceleration, 2);
+      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  τ: "));
+      StringBuilderAppendF32(sb, entity->netTorque, 2);
 
       if (isLastEntity) {
         StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
@@ -351,8 +385,14 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     switch (entity->volume->type) {
     case VOLUME_TYPE_CIRCLE: {
       volume_circle *circle = VolumeGetCircle(entity->volume);
-      entity->angularAcceleration = -0.0f;
       DrawCircle(renderer, entity->position, circle->radius, entity->rotation, *color);
+    } break;
+    case VOLUME_TYPE_BOX: {
+      volume_box *box = VolumeGetBox(entity->volume);
+      v2 dim = {box->width, box->height};
+      rect rect = RectCenterDim(entity->position, dim);
+      f32 rotation = entity->rotation;
+      DrawRectRotated(renderer, rect, rotation, COLOR_GREEN_600);
     } break;
     default: {
       breakpoint("drawing volume type not implemented");

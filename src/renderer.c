@@ -1,5 +1,22 @@
 #include "renderer.h"
 
+/*
+ * Convert point from world coordinates into specified coordinate system.
+ */
+static inline v2
+ToCoordinateSpace(v2 point, v2 origin, v2 xAxis, v2 yAxis)
+{
+  v2 pointInCoordinate = {
+      v2_dot(point, xAxis),
+      v2_dot(point, yAxis),
+  };
+  return v2_add(origin, pointInCoordinate);
+}
+
+/*
+ * Convert point from world coordinates into screen coordinate.
+ * Note: This is scaled with PIXELS_PER_METER
+ */
 static inline v2
 ToScreenSpace(game_renderer *gameRenderer, v2 point)
 {
@@ -7,11 +24,11 @@ ToScreenSpace(game_renderer *gameRenderer, v2 point)
   v2 yAxis = v2_perp(xAxis);
   v2 origin = gameRenderer->screenCenter;
 
-  v2 pointInScreenCoordinate = {
-      v2_dot((v2){point.x, 0.0f}, xAxis),
-      v2_dot((v2){0.0f, -point.y}, yAxis),
-  };
-  return v2_add(origin, v2_scale(pointInScreenCoordinate, PIXELS_PER_METER));
+  v2_scale_ref(&point, PIXELS_PER_METER);
+  point.y *= -1.0f; // screen space y positive means bottom
+  point = ToCoordinateSpace(point, origin, xAxis, yAxis);
+
+  return point;
 }
 
 static void
@@ -153,6 +170,78 @@ DrawRect(game_renderer *gameRenderer, rect rect, v4 color)
   SDL_Renderer *renderer = gameRenderer->renderer;
   SDL_SetRenderDrawColorFloat(renderer, color.r, color.g, color.b, color.a);
   SDL_RenderFillRect(renderer, &sdlRect);
+}
+
+static void
+DrawRectRotated(game_renderer *gameRenderer, rect rect, f32 rotation, v4 color)
+{
+  debug_assert(rect.min.x != rect.max.x && rect.min.y != rect.max.y && "invalid rect");
+
+  // in pixels
+  v2 leftTop, rightTop, rightBottom, leftBottom;
+  {
+    // in meters
+    v2 dim = RectGetDim(rect);
+    v2 halfDim = v2_scale(dim, 0.5f);
+
+    v2 origin = v2_add(rect.min, halfDim); // center of rect
+    v2 xAxis = V2(Cos(rotation), Sin(rotation));
+    v2 yAxis = v2_perp(xAxis);
+#if 0
+    // Display rotated coordinate system
+    DrawRect(gameRenderer, RectCenterDim(origin, V2(0.1f, 0.1f)), COLOR_PURPLE_300);
+    DrawRect(gameRenderer, RectCenterDim(xAxis, V2(0.1f, 0.1f)), COLOR_PURPLE_500);
+    DrawRect(gameRenderer, RectCenterDim(yAxis, V2(0.1f, 0.1f)), COLOR_PURPLE_800);
+#endif
+
+    // math coordinate to screen coordinate. Must be before rotating!
+    origin.y *= -1.0f;
+
+    // Assumed origin is (0,0) for rotating in local space
+    leftBottom = ToCoordinateSpace(v2_neg(halfDim), origin, xAxis, yAxis);
+    leftTop = ToCoordinateSpace(V2(-halfDim.x, halfDim.y), origin, xAxis, yAxis);
+    rightTop = ToCoordinateSpace(halfDim, origin, xAxis, yAxis);
+    rightBottom = ToCoordinateSpace(V2(halfDim.x, -halfDim.y), origin, xAxis, yAxis);
+
+    // from meters to pixels
+    v2_scale_ref(&leftBottom, PIXELS_PER_METER);
+    v2_scale_ref(&rightBottom, PIXELS_PER_METER);
+    v2_scale_ref(&leftTop, PIXELS_PER_METER);
+    v2_scale_ref(&rightTop, PIXELS_PER_METER);
+
+    // draw objects from screen center
+    v2 screenCenter = gameRenderer->screenCenter;
+    v2_add_ref(&leftBottom, screenCenter);
+    v2_add_ref(&rightBottom, screenCenter);
+    v2_add_ref(&leftTop, screenCenter);
+    v2_add_ref(&rightTop, screenCenter);
+  }
+
+  SDL_Vertex verticies[] = {
+      {
+          .position = {leftTop.x, leftTop.y},
+          .color = {color.r, color.g, color.b, color.a},
+      },
+      {
+          .position = {rightTop.x, rightTop.y},
+          .color = {color.r, color.g, color.b, color.a},
+      },
+      {
+          .position = {rightBottom.x, rightBottom.y},
+          .color = {color.r, color.g, color.b, color.a},
+      },
+      {
+          .position = {leftBottom.x, leftBottom.y},
+          .color = {color.r, color.g, color.b, color.a},
+      },
+  };
+  s32 vertexCount = ARRAY_COUNT(verticies);
+
+  s32 indices[] = {0, 1, 2, 2, 3, 0};
+  s32 indexCount = ARRAY_COUNT(indices);
+
+  SDL_Renderer *renderer = gameRenderer->renderer;
+  SDL_RenderGeometry(renderer, 0, verticies, vertexCount, indices, indexCount);
 }
 
 static void
