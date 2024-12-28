@@ -13,12 +13,6 @@
 #include "random.h"
 #include "renderer.h"
 
-typedef struct collision_map {
-  u32 a;
-  u32 b;
-  // TODO: collision_map *next;
-} collision_map;
-
 typedef struct {
   b8 isInitialized : 1;
 
@@ -28,9 +22,6 @@ typedef struct {
   entity *entities;
   u32 entityCount;
   u32 entityMax;
-
-  collision_map collisionMap;
-  // TODO: collision_map collisionMapFree;
 
   f32 time; // unit: sec
 } game_state;

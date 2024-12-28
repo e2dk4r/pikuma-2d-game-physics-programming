@@ -73,6 +73,7 @@ typedef struct entity {
   f32 I;                   // moment of inertia. unit: kg m²
   f32 invI;                // computed from 1/I. unit: kg⁻¹ m⁻²
 
+  b8 isColliding;
   v4 color;
   volume *volume;
 } entity;

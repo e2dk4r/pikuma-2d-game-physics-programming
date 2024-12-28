@@ -290,10 +290,23 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  volume: "));
-      string *type = entity->volume->type == VOLUME_TYPE_CIRCLE ? &STRING_FROM_ZERO_TERMINATED("circle")
-                     : entity->volume->type == VOLUME_TYPE_BOX  ? &STRING_FROM_ZERO_TERMINATED("box")
-                                                                : &STRING_FROM_ZERO_TERMINATED("unknown");
-      StringBuilderAppendString(sb, type);
+      switch (entity->volume->type) {
+      case VOLUME_TYPE_CIRCLE: {
+        volume_circle *circle = VolumeGetCircle(entity->volume);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("circle radius: "));
+        StringBuilderAppendF32(sb, circle->radius, 2);
+      } break;
+      case VOLUME_TYPE_BOX: {
+        volume_box *box = VolumeGetBox(entity->volume);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("box width: "));
+        StringBuilderAppendF32(sb, box->width, 2);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" height: "));
+        StringBuilderAppendF32(sb, box->height, 2);
+      } break;
+      default: {
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("unknown"));
+      } break;
+      }
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" mass: "));
       StringBuilderAppendF32(sb, entity->mass, 2);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("kg"));
@@ -370,14 +383,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
         isColliding = v2_length_square(distance) <= Square(circleA->radius + circleB->radius);
       }
 
-      collision_map *collision = &state->collisionMap;
-      if (isColliding) {
-        collision->a = entityAIndex;
-        collision->b = entityBIndex;
-      } else {
-        collision->a = 0;
-        collision->b = 0;
-      }
+      entityA->isColliding = isColliding;
+      entityB->isColliding = isColliding;
 
 #if (1 && IS_BUILD_DEBUG)
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("Entity #"));
@@ -433,8 +440,10 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     struct entity *entity = state->entities + entityIndex;
 
     v4 color = entity->color;
-    if (state->collisionMap.a == entityIndex || state->collisionMap.b == entityIndex)
+
+    if (entity->isColliding) {
       color = COLOR_RED_500;
+    }
 
     switch (entity->volume->type) {
     case VOLUME_TYPE_CIRCLE: {
