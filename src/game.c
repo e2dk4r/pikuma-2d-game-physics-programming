@@ -175,6 +175,11 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       .max = {1000.0f, -5.8f},
   };
 
+#if IS_BUILD_DEBUG
+  // To visualize physics
+  ClearScreen(renderer, COLOR_ZINC_900);
+#endif
+
   /*
    * - Apply forces
    */
@@ -362,10 +367,10 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     entity->netTorque = 0.0f;
 
     /*
-     * COLLISION
+     * COLLISION DETECTION
      */
 
-    for (u32 entityBIndex = 1; entityBIndex < state->entityCount; entityBIndex++) {
+    for (u32 entityBIndex = entityIndex + 1; entityBIndex < state->entityCount; entityBIndex++) {
       u32 entityAIndex = entityIndex;
       // entity cannot collide with itself
       if (entityBIndex == entityAIndex)
@@ -374,6 +379,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       struct entity *entityA = entity;
       struct entity *entityB = state->entities + entityBIndex;
       b8 isColliding = 0;
+      contact contact = {};
 
       if (entityA->volume->type == VOLUME_TYPE_CIRCLE && entityB->volume->type == VOLUME_TYPE_CIRCLE) {
         volume_circle *circleA = VolumeGetCircle(entityA->volume);
@@ -381,6 +387,17 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
         v2 distance = v2_sub(entityB->position, entityA->position);
         isColliding = v2_length_square(distance) <= Square(circleA->radius + circleB->radius);
+        if (isColliding) {
+          contact.normal = v2_normalize(distance);
+          contact.start = v2_sub(entityB->position, v2_scale(contact.normal, circleB->radius));
+          contact.end = v2_add(entityA->position, v2_scale(contact.normal, circleA->radius));
+          contact.depth = v2_length(v2_sub(contact.end, contact.start));
+
+          DrawRect(renderer, RectCenterDim(contact.start, V2(0.1f, 0.1f)), COLOR_BLUE_200);
+          DrawRect(renderer, RectCenterDim(contact.end, V2(0.1f, 0.1f)), COLOR_BLUE_700);
+          DrawLine(renderer, contact.start, v2_add(contact.start, v2_scale(contact.normal, 0.3f)), COLOR_BLUE_500,
+                   0.1f);
+        }
       }
 
       entityA->isColliding = isColliding;
@@ -416,7 +433,10 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   /*****************************************************************
    * RENDER
    *****************************************************************/
+  // Disabled only for rendering physics
+#if !IS_BUILD_DEBUG
   ClearScreen(renderer, COLOR_ZINC_900);
+#endif
 
 #if (0 && IS_BUILD_DEBUG)
   // Cartesian coordinate system

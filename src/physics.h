@@ -56,6 +56,13 @@ VolumeBox(memory_arena *memory, f32 width, f32 height);
 static f32
 VolumeGetMomentOfInertia(volume *volume, f32 mass);
 
+typedef struct contact {
+  v2 start;
+  v2 end;
+  v2 normal;
+  f32 depth;
+} contact;
+
 typedef struct entity {
   /* LINEAR KINEMATICS */
   v2 position;     // unit: m
