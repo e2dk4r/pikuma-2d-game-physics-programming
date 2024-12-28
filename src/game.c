@@ -286,7 +286,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 #if (1 && IS_BUILD_DEBUG)
     {
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("entity #"));
-      StringBuilderAppendU64(sb, entityIndex + 1);
+      StringBuilderAppendU64(sb, entityIndex);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  volume: "));
@@ -381,9 +381,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
 #if (1 && IS_BUILD_DEBUG)
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("Entity #"));
-      StringBuilderAppendU64(sb, entityAIndex + 1);
+      StringBuilderAppendU64(sb, entityAIndex);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" and #"));
-      StringBuilderAppendU64(sb, entityBIndex + 1);
+      StringBuilderAppendU64(sb, entityBIndex);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" is "));
       if (isColliding)
         StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("colliding."));
