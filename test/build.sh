@@ -70,3 +70,10 @@ src="$pwd/linked_list_test.c"
 output="$outputDir/$(BasenameWithoutExtension "$src")"
 "$cc" $cflags $ldflags $inc -o "$output" $src
 RunTest "$output" "TEST linked list failed."
+
+### hash_table_list_test
+inc="-I$ProjectRoot/include"
+src="$pwd/hash_table_list_test.c"
+output="$outputDir/$(BasenameWithoutExtension "$src")"
+"$cc" $cflags $ldflags $inc -o "$output" $src
+RunTest "$output" "TEST hash table list failed."
