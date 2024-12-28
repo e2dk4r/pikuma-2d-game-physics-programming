@@ -63,3 +63,10 @@ output="$outputDir/$(BasenameWithoutExtension "$src")"
 lib="$LIB_M"
 "$cc" $cflags $ldflags $inc -o "$output" $src $lib
 RunTest "$output" "TEST teju failed."
+
+### linked_list_test
+inc="-I$ProjectRoot/include"
+src="$pwd/linked_list_test.c"
+output="$outputDir/$(BasenameWithoutExtension "$src")"
+"$cc" $cflags $ldflags $inc -o "$output" $src
+RunTest "$output" "TEST linked list failed."
