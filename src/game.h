@@ -23,6 +23,8 @@ typedef struct {
   u32 entityCount;
   u32 entityMax;
 
+  volume *smallCircleVolume;
+
   f32 time; // unit: sec
 } game_state;
 

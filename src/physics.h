@@ -85,6 +85,11 @@ typedef struct entity {
   volume *volume;
 } entity;
 
+#define ENTITY_STATIC_MASS 0.0f
+
+static b8
+IsEntityStatic(struct entity *entity);
+
 /* Generate weight force */
 static v2
 GenerateWeightForce(struct entity *entity);

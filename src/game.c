@@ -12,6 +12,28 @@
 #include <unistd.h> // write()
 #endif
 
+static void
+EntityAdd(game_state *state, v2 position, f32 mass, volume *volume, v4 color)
+{
+  debug_assert(mass >= 0.0f && "entity max cannot be negative");
+  u32 entityIndex = state->entityCount;
+  debug_assert(entityIndex < state->entityMax && "max entity count reached");
+  entity *entity = state->entities + entityIndex;
+
+  entity->position = position;
+  entity->volume = volume;
+  entity->color = color;
+
+  if (mass != ENTITY_STATIC_MASS) {
+    entity->mass = mass;
+    entity->invMass = Inverse(entity->mass);
+    entity->I = VolumeGetMomentOfInertia(entity->volume, entity->mass);
+    entity->invI = Inverse(entity->I);
+  }
+
+  state->entityCount++;
+}
+
 void
 GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *renderer)
 {
@@ -34,51 +56,14 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     random_series *effectsEntropy = &state->effectsEntropy;
 
     // entities
-    state->entityMax = 4;
+    state->entityMax = 100 + 1;
     state->entities = MemoryArenaPush(worldArena, sizeof(*state->entities) * state->entityMax, 4);
-    u32 entityIndex = 1; // 0 is invalid entity index;
+    state->entityCount = 1; // Entity index 0 means null entity
 
-    if (1) { // circle
-      entity *entity = state->entities + entityIndex;
+    volume *bigCircleVolume = VolumeCircle(worldArena, 2.0f);
+    EntityAdd(state, V2(0.0f, 0.0f), ENTITY_STATIC_MASS, bigCircleVolume, COLOR_PINK_300);
 
-      entity->mass = RandomBetween(effectsEntropy, 1.0f, 10.0f);
-      entity->invMass = 1.0f / entity->mass;
-      entity->position = V2(RandomBetween(effectsEntropy, 3.0f, 5.0f), 0.0f);
-      entity->volume = VolumeCircle(worldArena, RandomBetween(effectsEntropy, 0.5f, 3.0f));
-      entity->I = VolumeGetMomentOfInertia(entity->volume, entity->mass);
-      entity->invI = 1.0f / entity->I;
-
-      entity->color = COLOR_PURPLE_300;
-
-      entityIndex++;
-    }
-    if (1) { // circle
-      entity *entity = state->entities + entityIndex;
-
-      entity->mass = RandomBetween(effectsEntropy, 1.0f, 10.0f);
-      entity->invMass = 1.0f / entity->mass;
-      entity->position = V2(RandomBetween(effectsEntropy, -5.0f, -3.0f), 0.0f);
-      entity->volume = VolumeCircle(worldArena, RandomBetween(effectsEntropy, 0.5f, 3.0f));
-      entity->I = VolumeGetMomentOfInertia(entity->volume, entity->mass);
-      entity->invI = 1.0f / entity->I;
-
-      entity->color = COLOR_BLUE_300;
-
-      entityIndex++;
-    }
-    if (0) { // box
-      entity *entity = state->entities + entityIndex;
-
-      entity->mass = RandomBetween(effectsEntropy, 1.0f, 10.0f);
-      entity->invMass = 1.0f / entity->mass;
-      entity->volume = VolumeBox(worldArena, 1.0f, 1.0f);
-      entity->I = VolumeGetMomentOfInertia(entity->volume, entity->mass);
-      entity->invI = 1.0f / entity->I;
-
-      entityIndex++;
-    }
-
-    state->entityCount = entityIndex;
+    state->smallCircleVolume = VolumeCircle(worldArena, 0.25f);
 
     // state is ready
     state->isInitialized = 1;
@@ -137,32 +122,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       v2 surfaceHalfDim = RectGetHalfDim(RendererGetSurfaceRect(renderer));
       mousePosition = v2_hadamard((v2){controller->rsX, controller->rsY}, // [-1.0, 1.0]
                                   surfaceHalfDim);
-
-      if (controller->lb.isDown) {
-        impulse = 1;
-      }
-
       if (controller->lb.wasDown) {
-        impulse = 0;
-
-        entity *lastEntity = state->entities + state->entityCount - 1;
-        v2 diff = v2_sub(lastEntity->position, mousePosition);
-        f32 impulseMagnitude = v2_length(diff) * 5.0f;
-        v2 impulseDirection = v2_normalize(diff);
-        v2 impulseVector = v2_scale(impulseDirection, impulseMagnitude);
-        lastEntity->velocity = impulseVector;
-
-#if (1 && IS_BUILD_DEBUG)
-        {
-          StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("impulse: "));
-          StringBuilderAppendF32(sb, impulseVector.x, 2);
-          StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(","));
-          StringBuilderAppendF32(sb, impulseVector.y, 2);
-          StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
-          string string = StringBuilderFlush(sb);
-          write(STDOUT_FILENO, string.value, string.length);
-        }
-#endif
+        f32 mass = 1.0f;
+        EntityAdd(state, mousePosition, mass, state->smallCircleVolume, COLOR_RED_300);
       }
     }
   }
@@ -187,6 +149,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     struct entity *entity = state->entities + entityIndex;
     b8 isLastEntity = entityIndex == state->entityCount - 1;
 
+    if (IsEntityStatic(entity))
+      continue;
+
     // apply input force
     if (isLastEntity)
       v2_add_ref(&entity->netForce, v2_scale(inputForce, 50.0f));
@@ -199,7 +164,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     v2 dampingForce = GenerateDampingForce(entity, 0.8f);
     v2_add_ref(&entity->netForce, dampingForce);
 
-#if 0
+#if 1
     // do not apply any force
     entity->netForce = V2(0.0f, 0.0f);
     entity->netTorque = 0.0f;

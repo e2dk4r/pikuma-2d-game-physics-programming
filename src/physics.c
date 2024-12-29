@@ -123,6 +123,8 @@ VolumeBoxGetMomentOfInertia(volume *volume, f32 mass)
 static inline f32
 VolumeGetMomentOfInertia(volume *volume, f32 mass)
 {
+  debug_assert(mass != 0.0f);
+
   switch (volume->type) {
   case VOLUME_TYPE_CIRCLE: {
     return VolumeCircleGetMomentOfInertia(volume, mass);
@@ -136,6 +138,18 @@ VolumeGetMomentOfInertia(volume *volume, f32 mass)
     return 0.0f;
   } break;
   }
+}
+
+static b8
+IsEntityStatic(struct entity *entity)
+{
+#if 1
+  return entity->invMass == ENTITY_STATIC_MASS;
+#else
+  // TODO: Is entity can become a static object after initialization?
+  f32 epsilon = 0.005f;
+  return Absolute(entity->mass) < epsilon;
+#endif
 }
 
 static v2

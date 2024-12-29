@@ -61,18 +61,25 @@ IsPowerOfTwo(u64 value)
 #define Maximum(x, y) (x > y ? x : y)
 #define Minimum(x, y) (x < y ? x : y)
 
-static inline u64
-Absolute(s64 value)
+static inline f64
+Absolute(f64 value)
 {
   if (value < 0)
-    return (u64)(-value);
-  return (u64)value;
+    return (f64)(-value);
+  return (f64)value;
 }
 
 static inline f32
 Square(f32 value)
 {
   return value * value;
+}
+
+static inline f32
+Inverse(f32 value)
+{
+  debug_assert(value != 0.0f);
+  return 1.0f / value;
 }
 
 /* linear blend
