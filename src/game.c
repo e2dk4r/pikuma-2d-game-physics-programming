@@ -180,9 +180,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   ClearScreen(renderer, COLOR_ZINC_900);
 #endif
 
-  /*
-   * - Apply forces
-   */
+  /*▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼
+    ▶ Apply forces
+    ▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲*/
   for (u32 entityIndex = 1; entityIndex < state->entityCount; entityIndex++) {
     struct entity *entity = state->entities + entityIndex;
     b8 isLastEntity = entityIndex == state->entityCount - 1;
@@ -206,9 +206,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 #endif
   }
 
-  /*
-   * - Integrate applied forces
-   */
+  /*▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼
+    ▶ Integrate applied forces
+    ▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲*/
   for (u32 entityIndex = 1; entityIndex < state->entityCount; entityIndex++) {
     struct entity *entity = state->entities + entityIndex;
     b8 isLastEntity = entityIndex == state->entityCount - 1;
@@ -366,9 +366,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     entity->netForce = (v2){0.0f, 0.0f};
     entity->netTorque = 0.0f;
 
-    /*
-     * COLLISION DETECTION
-     */
+    /*▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼
+      ▶ COLLISION DETECTION
+      ▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲*/
 
     for (u32 entityBIndex = entityIndex + 1; entityBIndex < state->entityCount; entityBIndex++) {
       u32 entityAIndex = entityIndex;
@@ -395,9 +395,33 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
           DrawRect(renderer, RectCenterDim(contact.start, V2(0.1f, 0.1f)), COLOR_BLUE_200);
           DrawRect(renderer, RectCenterDim(contact.end, V2(0.1f, 0.1f)), COLOR_BLUE_700);
-          DrawLine(renderer, contact.start, v2_add(contact.start, v2_scale(contact.normal, 0.3f)), COLOR_BLUE_500,
+          DrawLine(renderer, contact.start, v2_add(contact.start, v2_scale(contact.normal, 0.25f)), COLOR_BLUE_500,
                    0.1f);
         }
+      }
+
+      /*▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼
+        ▶ COLLISION RESOLUTION
+        ▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲*/
+      if (contact.depth != 0.0f) {
+        /* THE PROJECTION METHOD
+         * Adjust the "position" of colliding objects.
+         *
+         *   d₁ = depth m₂ / (m₁ + m₂)
+         *   d₂ = depth m₁ / (m₁ + m₂)
+         *
+         * If we apply to convert to using only inverse of mass. Because we may
+         * choose to store only inverse of mass of an entity.
+         *
+         *   d₁ = depth / (1/m₁ + 1/m₂) 1/m₁
+         *   d₂ = depth / (1/m₁ + 1/m₂) 1/m₂
+         *
+         */
+        f32 displacementA = contact.depth / (entityA->invMass + entityB->invMass) * entityA->invMass;
+        f32 displacementB = contact.depth / (entityA->invMass + entityB->invMass) * entityB->invMass;
+
+        v2_sub_ref(&entityA->position, v2_scale(contact.normal, displacementA));
+        v2_add_ref(&entityB->position, v2_scale(contact.normal, displacementB));
       }
 
       entityA->isColliding = isColliding;
