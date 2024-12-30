@@ -56,13 +56,6 @@ VolumeBox(memory_arena *memory, f32 width, f32 height);
 static f32
 VolumeGetMomentOfInertia(volume *volume, f32 mass);
 
-typedef struct contact {
-  v2 start;
-  v2 end;
-  v2 normal;
-  f32 depth;
-} contact;
-
 typedef struct entity {
   /* LINEAR KINEMATICS */
   v2 position;     // unit: m
@@ -83,6 +76,7 @@ typedef struct entity {
   b8 isColliding;
   v4 color;
   volume *volume;
+  f32 restitution; // coefficient of elasticity ε, [0, 1]
 } entity;
 
 #define ENTITY_STATIC_MASS 0.0f
@@ -130,3 +124,13 @@ GenerateSpringForce(struct entity *entity, v2 anchorPosition, f32 equilibrium, f
  */
 static v2
 GenerateDampingForce(struct entity *entity, f32 k);
+
+typedef struct contact {
+  v2 start;
+  v2 end;
+  v2 normal;
+  f32 depth;
+} contact;
+
+static void
+CollisionResolve(struct entity *a, struct entity *b, contact *contact);

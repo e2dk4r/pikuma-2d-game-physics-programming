@@ -12,7 +12,7 @@
 #include <unistd.h> // write()
 #endif
 
-static void
+static struct entity *
 EntityAdd(game_state *state, v2 position, f32 mass, volume *volume, v4 color)
 {
   debug_assert(mass >= 0.0f && "entity max cannot be negative");
@@ -20,18 +20,23 @@ EntityAdd(game_state *state, v2 position, f32 mass, volume *volume, v4 color)
   debug_assert(entityIndex < state->entityMax && "max entity count reached");
   entity *entity = state->entities + entityIndex;
 
+  // simulation parameters
   entity->position = position;
-  entity->volume = volume;
-  entity->color = color;
 
+  entity->volume = volume;
   if (mass != ENTITY_STATIC_MASS) {
     entity->mass = mass;
     entity->invMass = Inverse(entity->mass);
     entity->I = VolumeGetMomentOfInertia(entity->volume, entity->mass);
     entity->invI = Inverse(entity->I);
   }
+  entity->restitution = 1.0f;
+
+  // visual parameters
+  entity->color = color;
 
   state->entityCount++;
+  return entity;
 }
 
 void
@@ -64,6 +69,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     EntityAdd(state, V2(0.0f, 0.0f), ENTITY_STATIC_MASS, bigCircleVolume, COLOR_PINK_300);
 
     state->smallCircleVolume = VolumeCircle(worldArena, 0.25f);
+    entity *smallCircle = EntityAdd(state, V2(-5.0f, 0.0f), 1.0f, state->smallCircleVolume, COLOR_PINK_500);
+    smallCircle->restitution = 0.75f;
 
     // state is ready
     state->isInitialized = 1;
@@ -124,7 +131,8 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
                                   surfaceHalfDim);
       if (controller->lb.wasDown) {
         f32 mass = 1.0f;
-        EntityAdd(state, mousePosition, mass, state->smallCircleVolume, COLOR_RED_300);
+        entity *smallCircle = EntityAdd(state, mousePosition, mass, state->smallCircleVolume, COLOR_PINK_500);
+        smallCircle->restitution = 0.75f;
       }
     }
   }
@@ -153,18 +161,17 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       continue;
 
     // apply input force
-    if (isLastEntity)
-      v2_add_ref(&entity->netForce, v2_scale(inputForce, 50.0f));
+    v2_add_ref(&entity->netForce, v2_scale(inputForce, 50.0f));
+
+    // apply weight force
+    v2 weightForce = GenerateWeightForce(entity);
+    v2_add_ref(&entity->netForce, weightForce);
 
     // apply drag force
-    v2 dragForce = GenerateDragForce(entity, 3.1f);
+    v2 dragForce = GenerateDragForce(entity, 0.01f);
     v2_add_ref(&entity->netForce, dragForce);
 
-    // apply damping force
-    v2 dampingForce = GenerateDampingForce(entity, 0.8f);
-    v2_add_ref(&entity->netForce, dampingForce);
-
-#if 1
+#if 0
     // do not apply any force
     entity->netForce = V2(0.0f, 0.0f);
     entity->netTorque = 0.0f;
@@ -289,9 +296,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  vel: "));
-      StringBuilderAppendF32(sb, entity->velocity.x, 2);
+      StringBuilderAppendF32(sb, entity->velocity.x, 10);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
-      StringBuilderAppendF32(sb, entity->velocity.y, 2);
+      StringBuilderAppendF32(sb, entity->velocity.y, 10);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  acc: "));
@@ -331,21 +338,35 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     entity->netForce = (v2){0.0f, 0.0f};
     entity->netTorque = 0.0f;
 
-    /*▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼
-      ▶ COLLISION DETECTION
-      ▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲*/
+    // TODO: Ground collision is broken
+    if (IsPointInsideRect(entity->position, groundRect)) {
+      v2 groundNormal = {0.0f, 1.0f};
 
-    for (u32 entityBIndex = entityIndex + 1; entityBIndex < state->entityCount; entityBIndex++) {
-      u32 entityAIndex = entityIndex;
+      // reflect
+      // v' = v - 2(v∙n)n
+      entity->velocity =
+          v2_sub(entity->velocity, v2_scale(groundNormal, 2.0f * v2_dot(entity->velocity, groundNormal)));
+    }
+  }
+
+  /*▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼
+    ▶ COLLISION DETECTION & RESOLUTION
+    ▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲*/
+  for (u32 entityAIndex = 1; entityAIndex < state->entityCount; entityAIndex++) {
+    struct entity *entityA = state->entities + entityAIndex;
+    for (u32 entityBIndex = entityAIndex + 1; entityBIndex < state->entityCount; entityBIndex++) {
+      struct entity *entityB = state->entities + entityBIndex;
+
+      /*▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼
+        ▶ COLLISION DETECTION
+        ▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲*/
+
       // entity cannot collide with itself
-      if (entityBIndex == entityAIndex)
+      if (entityAIndex == entityBIndex)
         continue;
 
-      struct entity *entityA = entity;
-      struct entity *entityB = state->entities + entityBIndex;
       b8 isColliding = 0;
       contact contact = {};
-
       if (entityA->volume->type == VOLUME_TYPE_CIRCLE && entityB->volume->type == VOLUME_TYPE_CIRCLE) {
         volume_circle *circleA = VolumeGetCircle(entityA->volume);
         volume_circle *circleB = VolumeGetCircle(entityB->volume);
@@ -369,30 +390,13 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
         ▶ COLLISION RESOLUTION
         ▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲*/
       if (contact.depth != 0.0f) {
-        /* THE PROJECTION METHOD
-         * Adjust the "position" of colliding objects.
-         *
-         *   d₁ = depth m₂ / (m₁ + m₂)
-         *   d₂ = depth m₁ / (m₁ + m₂)
-         *
-         * If we apply to convert to using only inverse of mass. Because we may
-         * choose to store only inverse of mass of an entity.
-         *
-         *   d₁ = depth / (1/m₁ + 1/m₂) 1/m₁
-         *   d₂ = depth / (1/m₁ + 1/m₂) 1/m₂
-         *
-         */
-        f32 displacementA = contact.depth / (entityA->invMass + entityB->invMass) * entityA->invMass;
-        f32 displacementB = contact.depth / (entityA->invMass + entityB->invMass) * entityB->invMass;
-
-        v2_sub_ref(&entityA->position, v2_scale(contact.normal, displacementA));
-        v2_add_ref(&entityB->position, v2_scale(contact.normal, displacementB));
+        CollisionResolve(entityA, entityB, &contact);
       }
 
       entityA->isColliding = isColliding;
       entityB->isColliding = isColliding;
 
-#if (1 && IS_BUILD_DEBUG)
+#if (0 && IS_BUILD_DEBUG)
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("Entity #"));
       StringBuilderAppendU64(sb, entityAIndex);
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" and #"));
@@ -406,16 +410,6 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       string string = StringBuilderFlush(sb);
       write(STDOUT_FILENO, string.value, string.length);
 #endif
-    }
-
-    // TODO: Ground collision is broken
-    if (IsPointInsideRect(entity->position, groundRect)) {
-      v2 groundNormal = {0.0f, 1.0f};
-
-      // reflect
-      // v' = v - 2(v∙n)n
-      entity->velocity =
-          v2_sub(entity->velocity, v2_scale(groundNormal, 2.0f * v2_dot(entity->velocity, groundNormal)));
     }
   }
 
