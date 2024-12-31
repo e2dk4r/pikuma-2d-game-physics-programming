@@ -65,12 +65,19 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     state->entities = MemoryArenaPush(worldArena, sizeof(*state->entities) * state->entityMax, 4);
     state->entityCount = 1; // Entity index 0 means null entity
 
+#if 0
     volume *bigCircleVolume = VolumeCircle(worldArena, 2.0f);
     EntityAdd(state, V2(0.0f, 0.0f), ENTITY_STATIC_MASS, bigCircleVolume, COLOR_PINK_300);
 
     state->smallCircleVolume = VolumeCircle(worldArena, 0.25f);
     entity *smallCircle = EntityAdd(state, V2(-5.0f, 0.0f), 1.0f, state->smallCircleVolume, COLOR_PINK_500);
     smallCircle->restitution = 0.75f;
+#else
+
+    EntityAdd(state, V2(0.0f, 0.0f), ENTITY_STATIC_MASS, VolumeBox(worldArena, 1.0f, 1.0f), COLOR_PINK_300);
+    EntityAdd(state, V2(-3.0f, 0.0f), 1.0f, VolumeBox(worldArena, 1.0f, 1.0f), COLOR_PINK_500);
+
+#endif
 
     // state is ready
     state->isInitialized = 1;
@@ -161,17 +168,17 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       continue;
 
     // apply input force
-    v2_add_ref(&entity->netForce, v2_scale(inputForce, 50.0f));
+    v2_add_ref(&entity->netForce, v2_scale(inputForce, 30.0f));
 
+    // apply drag force
+    v2 dragForce = GenerateDragForce(entity, 3.81f);
+    v2_add_ref(&entity->netForce, dragForce);
+
+#if 0
     // apply weight force
     v2 weightForce = GenerateWeightForce(entity);
     v2_add_ref(&entity->netForce, weightForce);
 
-    // apply drag force
-    v2 dragForce = GenerateDragForce(entity, 0.01f);
-    v2_add_ref(&entity->netForce, dragForce);
-
-#if 0
     // do not apply any force
     entity->netForce = V2(0.0f, 0.0f);
     entity->netTorque = 0.0f;
@@ -365,31 +372,20 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       if (entityAIndex == entityBIndex)
         continue;
 
-      b8 isColliding = 0;
       contact contact = {};
-      if (entityA->volume->type == VOLUME_TYPE_CIRCLE && entityB->volume->type == VOLUME_TYPE_CIRCLE) {
-        volume_circle *circleA = VolumeGetCircle(entityA->volume);
-        volume_circle *circleB = VolumeGetCircle(entityB->volume);
-
-        v2 distance = v2_sub(entityB->position, entityA->position);
-        isColliding = v2_length_square(distance) <= Square(circleA->radius + circleB->radius);
-        if (isColliding) {
-          contact.normal = v2_normalize(distance);
-          contact.start = v2_sub(entityB->position, v2_scale(contact.normal, circleB->radius));
-          contact.end = v2_add(entityA->position, v2_scale(contact.normal, circleA->radius));
-          contact.depth = v2_length(v2_sub(contact.end, contact.start));
-
-          DrawRect(renderer, RectCenterDim(contact.start, V2(0.1f, 0.1f)), COLOR_BLUE_200);
-          DrawRect(renderer, RectCenterDim(contact.end, V2(0.1f, 0.1f)), COLOR_BLUE_700);
-          DrawLine(renderer, contact.start, v2_add(contact.start, v2_scale(contact.normal, 0.25f)), COLOR_BLUE_500,
-                   0.1f);
-        }
+      b8 isColliding = CollisionDetect(entityA, entityB, &contact);
+#if (1 && IS_BUILD_DEBUG)
+      if (isColliding) {
+        DrawRect(renderer, RectCenterDim(contact.start, V2(0.1f, 0.1f)), COLOR_BLUE_200);
+        DrawRect(renderer, RectCenterDim(contact.end, V2(0.1f, 0.1f)), COLOR_BLUE_700);
+        DrawLine(renderer, contact.start, v2_add(contact.start, v2_scale(contact.normal, 0.25f)), COLOR_BLUE_500, 0.1f);
       }
+#endif
 
       /*▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼
         ▶ COLLISION RESOLUTION
         ▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲*/
-      if (contact.depth != 0.0f) {
+      if (isColliding && contact.depth != 0.0f) {
         CollisionResolve(entityA, entityB, &contact);
       }
 
