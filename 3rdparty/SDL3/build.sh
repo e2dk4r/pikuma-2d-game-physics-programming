@@ -6,7 +6,7 @@ fi
 
 # To see the available tags, execute below command:
 # $ curl -sH 'accept: application/vnd.github+json' https://api.github.com/repos/libsdl-org/SDL/releases | jq -r '.[].tag_name'
-LIBSDL_TAG=preview-3.1.6
+LIBSDL_TAG=preview-3.1.8
 LIBSDL_PREFIX=${LIBSDL_TAG%%-*}
 LIBSDL_VERSION=${LIBSDL_TAG##*-}
 
@@ -16,7 +16,8 @@ LIBSDL_VERSION=${LIBSDL_TAG##*-}
 LIBSDL_FILEBASENAME="SDL${LIBSDL_VERSION%%.*}-$LIBSDL_VERSION"
 LIBSDL_URL="https://github.com/libsdl-org/SDL/releases/download/$LIBSDL_PREFIX-$LIBSDL_VERSION/$LIBSDL_FILEBASENAME.tar.gz"
 LIBSDL_FILE="$outputDir/$LIBSDL_FILEBASENAME.tar.gz"
-LIBSDL_HASH_B2="6fa3182ab933bad2f3f939acddf82cddc9cc059debcc8c04e546639932f5cc3152d4a6a656ad24848c90b7827a49e19b518d98d14af50b1b914f9f2e91d8441b"
+LIBSDL_HASH_B2="a18dddfb8ffe6d811d9e9e4222b67880508f511ad398b6e32cb94af08163fa8c888aaaa66aef1bf3e27e1cadfd473776d668ca99a7f63bb5c46d1697cce6a89d"
+
 Log "3rdparty/SDL"
 Log "- tag:     $LIBSDL_TAG"
 Log "- version: $LIBSDL_VERSION"
