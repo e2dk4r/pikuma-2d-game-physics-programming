@@ -20,6 +20,8 @@ enum math_test_error {
   MATH_TEST_ERROR_V2_NEG,
   MATH_TEST_ERROR_IS_POINT_INSIDE_RECT_EXPECTED_TRUE,
   MATH_TEST_ERROR_IS_POINT_INSIDE_RECT_EXPECTED_FALSE,
+  MATH_TEST_ERROR_IS_AABB_OVERLAPPING_EXPECTED_TRUE,
+  MATH_TEST_ERROR_IS_AABB_OVERLAPPING_EXPECTED_FALSE,
 
   // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
   // For the default exitcode testing protocol, the GNU standard approach in
@@ -250,6 +252,28 @@ main(void)
     value = IsPointInsideRect(point, rect);
     if (value != expected) {
       errorCode = MATH_TEST_ERROR_IS_POINT_INSIDE_RECT_EXPECTED_FALSE;
+      goto end;
+    }
+  }
+
+  // IsAABBOverlapping(struct rect a, struct rect b)
+  {
+    struct rect a = RectCenterDim(V2(0.0f, 0.0f), V2(10.0f, 10.0f));
+    struct rect b = RectCenterDim(V2(0.0f, 0.0f), V2(5.0f, 5.0f));
+    struct rect c = RectCenterDim(V2(100.0f, 100.0f), V2(5.0f, 5.0f));
+    b8 expected, value;
+
+    expected = 1;
+    value = IsAABBOverlapping(a, b);
+    if (value != expected) {
+      errorCode = MATH_TEST_ERROR_IS_AABB_OVERLAPPING_EXPECTED_TRUE;
+      goto end;
+    }
+
+    expected = 0;
+    value = IsAABBOverlapping(a, c);
+    if (value != expected) {
+      errorCode = MATH_TEST_ERROR_IS_AABB_OVERLAPPING_EXPECTED_FALSE;
       goto end;
     }
   }

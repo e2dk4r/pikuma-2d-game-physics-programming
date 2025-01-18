@@ -320,6 +320,232 @@ ApplyImpulse(struct entity *a, v2 j)
   v2_add_ref(&a->velocity, v2_scale(j, a->invMass));
 }
 
+static v2
+FindFurthestPoint(struct entity *entity, v2 direction)
+{
+  volume *volume = entity->volume;
+
+  switch (volume->type) {
+  case VOLUME_TYPE_CIRCLE: {
+    volume_circle *circle = VolumeGetCircle(volume);
+    v2 maxPoint = v2_scale(direction, circle->radius);
+    return v2_add(entity->position, maxPoint);
+  } break;
+
+  case VOLUME_TYPE_BOX: {
+    volume_box *box = VolumeGetBox(volume);
+    f32 halfWidth = box->width * 0.5f;
+    f32 halfHeight = box->height * 0.5f;
+    v2 verticies[] = {
+        // left bottom
+        {-halfWidth, -halfHeight},
+        // right bottom
+        {halfWidth, -halfHeight},
+        // right top
+        {halfWidth, halfHeight},
+        // left top
+        {-halfWidth, halfHeight},
+    };
+    u32 vertexCount = ARRAY_COUNT(verticies);
+
+    v2 maxPoint = verticies[0];
+    f32 maxDistance = v2_dot(maxPoint, direction);
+    for (u32 vertexIndex = 1; vertexIndex < vertexCount; vertexIndex++) {
+      v2 point = verticies[vertexIndex];
+      f32 distance = v2_dot(point, direction);
+      if (distance > maxDistance) {
+        maxPoint = point;
+        maxDistance = distance;
+      }
+    }
+
+    return v2_add(entity->position, maxPoint);
+  } break;
+
+  case VOLUME_TYPE_POLYGON: {
+    volume_polygon *polygon = VolumeGetPolygon(volume);
+    v2 *verticies = polygon->verticies;
+    u32 vertexCount = polygon->vertexCount;
+
+    v2 maxPoint = verticies[0];
+    f32 maxDistance = v2_dot(maxPoint, direction);
+    for (u32 vertexIndex = 1; vertexIndex < vertexCount; vertexIndex++) {
+      v2 point = verticies[vertexIndex];
+      f32 distance = v2_dot(point, direction);
+      if (distance > maxDistance) {
+        maxPoint = point;
+        maxDistance = distance;
+      }
+    }
+
+    return v2_add(entity->position, maxPoint);
+  } break;
+
+  default: {
+    breakpoint("unsupported volume");
+    return V2(0.0f, 0.0f);
+  } break;
+  }
+}
+
+static v2
+Support(struct entity *a, struct entity *b, v2 direction)
+{
+  return v2_sub(FindFurthestPoint(a, direction), FindFurthestPoint(b, v2_neg(direction)));
+}
+
+static b8
+IsSameDirection(v2 direction, v2 ao)
+{
+  return v2_dot(direction, ao) > 0.0f;
+}
+
+static v2
+TripleCrossProduct(v2 a, v2 b, v2 c)
+{
+  v3 A = {.xy = a};
+  v3 B = {.xy = b};
+  v3 C = {.xy = c};
+  v3 cross = v3_cross(v3_cross(A, B), C);
+  return cross.xy;
+}
+
+static b8
+CollisionDetect(struct entity *a, struct entity *b, contact *contact)
+{
+  if (a->volume->type > b->volume->type) {
+    struct entity *tmp = a;
+    a = b;
+    b = a;
+  }
+
+  b8 isColliding = 0;
+
+  switch (a->volume->type | b->volume->type) {
+  case VOLUME_TYPE_CIRCLE | VOLUME_TYPE_CIRCLE: {
+    volume_circle *circleA = VolumeGetCircle(a->volume);
+    volume_circle *circleB = VolumeGetCircle(b->volume);
+
+    v2 distance = v2_sub(b->position, a->position);
+    isColliding = v2_length_square(distance) <= Square(circleA->radius + circleB->radius);
+    if (!isColliding)
+      return isColliding;
+
+    contact->normal = v2_normalize(distance);
+    contact->start = v2_sub(b->position, v2_scale(contact->normal, circleB->radius));
+    contact->end = v2_add(a->position, v2_scale(contact->normal, circleA->radius));
+    contact->depth = v2_length(v2_sub(contact->end, contact->start));
+  } break;
+
+  case VOLUME_TYPE_BOX | VOLUME_TYPE_BOX: {
+    /* see:
+     * - https://www.youtube.com/watch?v=MDusDn8oTSE "GJK Algorithm Explanation & Implementation"
+     *   https://winter.dev/articles/gjk-algorithm
+     * - https://www.youtube.com/watch?v=Qupqu1xe7Io "Implementing GJK - 2006"
+     */
+    // get initial support point in any direction
+    v2 support = Support(a, b, V2(1.0f, 0.0f));
+
+    // simplex is array of points, max of 3 for 2D
+    v2 points[3] = {};
+    points[0] = support;
+    u32 pointCount = 1;
+
+    // new direction is towards origin
+    v2 direction = v2_neg(support);
+
+    while (!isColliding) {
+      support = Support(a, b, direction);
+      if (v2_dot(support, direction) <= 0) {
+        // did not pass origin in search direction
+        // no collision / no intersection
+        isColliding = 0;
+        return isColliding;
+      }
+
+      points[pointCount] = support;
+      pointCount++;
+      debug_assert(pointCount <= ARRAY_COUNT(points));
+
+      switch (pointCount) {
+      case 2: {
+        // if simplex is line
+        v2 pointA = points[1]; // new point, just got added
+        v2 pointB = points[0]; // old point, was in the simplex before
+
+        v2 ab = v2_sub(pointB, pointA); // a to b
+        v2 ao = v2_neg(pointA);         // a to origin
+
+        if (IsSameDirection(ab, ao)) {
+          // if ab and ao is in same direction
+          // direction is perpendicular to the edge that points to origin
+          //   ab × ao × ab
+
+          if (ab.y == 0.0f) {
+            // edge case
+            // TripleCrossProduct() fails
+            direction = v2_perp(ab);
+          } else {
+            direction = TripleCrossProduct(ab, ao, ab);
+          }
+        } else {
+          v2 newPoints[] = {pointA};
+          pointCount = ARRAY_COUNT(newPoints);
+          memcpy(points, newPoints, pointCount);
+
+          direction = ao;
+        }
+      } break;
+      case 3: {
+        // if simplex is triangle
+        v2 pointA = points[2]; // new point, that just got added
+        v2 pointB = points[1];
+        v2 pointC = points[0];
+
+        v2 ab = v2_sub(pointB, pointA);
+        v2 ac = v2_sub(pointC, pointA);
+        v2 ao = v2_neg(pointA);
+
+        v2 abPerp = TripleCrossProduct(ac, ab, ab);
+        if (IsSameDirection(abPerp, ao)) {
+          // Line({a, b}, direction)
+          v2 newPoints[] = {pointB, pointA};
+          pointCount = ARRAY_COUNT(newPoints);
+          memcpy(points, newPoints, pointCount);
+
+          direction = abPerp;
+          continue;
+        }
+
+        v2 acPerp = TripleCrossProduct(ab, ac, ac);
+        if (IsSameDirection(acPerp, ao)) {
+          // Line({a, c}, direction)
+          v2 newPoints[] = {pointC, pointA};
+          pointCount = ARRAY_COUNT(newPoints);
+          memcpy(points, newPoints, pointCount);
+
+          direction = acPerp;
+          continue;
+        }
+
+        // must be inside of triangle
+        isColliding = 1;
+      } break;
+      }
+    }
+
+    // if is colliding
+    // TODO: penetration depeth Expanding Polytope Algorithm EPA
+  } break;
+
+  default: {
+    breakpoint("don't know how to detect collisition between volumes");
+  }; break;
+  }
+
+  return isColliding;
+}
+
 static void
 CollisionResolvePenetration(struct entity *a, struct entity *b, contact *contact)
 {

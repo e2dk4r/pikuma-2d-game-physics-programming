@@ -13,9 +13,10 @@
  */
 
 typedef enum volume_type {
-  VOLUME_TYPE_CIRCLE,
-  VOLUME_TYPE_POLYGON,
-  VOLUME_TYPE_BOX,
+  VOLUME_TYPE_CIRCLE = (1 << 0),
+  VOLUME_TYPE_POLYGON = (1 << 1),
+  VOLUME_TYPE_BOX = (1 << 2),
+  VOLUME_TYPE_TRIANGLE = (1 << 3),
 } volume_type;
 
 // Tagged union. see: volume_*
@@ -131,6 +132,9 @@ typedef struct contact {
   v2 normal;
   f32 depth;
 } contact;
+
+static b8
+CollisionDetect(struct entity *a, struct entity *b, contact *contact);
 
 static void
 CollisionResolve(struct entity *a, struct entity *b, contact *contact);

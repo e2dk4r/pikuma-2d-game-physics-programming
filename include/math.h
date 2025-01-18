@@ -325,6 +325,27 @@ typedef struct v3 {
   };
 } v3;
 
+static inline void
+v3_cross_ref(v3 *a, v3 b)
+{
+  /* see:
+   * - https://www.youtube.com/watch?v=eu6i7WJeinw "Cross products | Chapter 10, Essence of linear algebra"
+   */
+  v3 crossProduct = {
+      a->y * b.z - a->z * b.y,
+      a->z * b.x - a->x * b.z,
+      a->x * b.y - a->y * b.x,
+  };
+  *a = crossProduct;
+}
+
+static inline v3
+v3_cross(v3 a, v3 b)
+{
+  v3_cross_ref(&a, b);
+  return a;
+}
+
 typedef struct v4 {
   union {
     struct {
@@ -397,4 +418,19 @@ IsPointInsideRect(struct v2 point, struct rect rect)
       && point.y >= rect.min.y && point.y < rect.max.y
       //
       ;
+}
+
+static inline b8
+IsAABBOverlapping(struct rect a, struct rect b)
+{
+  debug_assert(a.min.x < a.max.x && a.min.y < a.max.y && "invalid rect");
+  debug_assert(b.min.x < b.max.x && b.min.y < b.max.y && "invalid rect");
+
+  // see: https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection#aabb_vs._aabb
+  return
+      // --AL--BL--AR--BR--
+      // x axis, a's left less than b's right and b's right less than a's left
+      (a.min.x <= b.max.x && b.min.x < a.max.x)
+      // y axis, a's bottom less than b's top and b's bottom less than a's top
+      && (a.min.y <= b.max.y && b.min.y < a.max.y);
 }
