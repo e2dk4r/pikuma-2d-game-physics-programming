@@ -99,7 +99,7 @@ main(void)
 
     string *expected = &STRING_FROM_ZERO_TERMINATED("4.31");
     if (!IsStringStartsWith(outBuffer, expected)) {
-      errorCode = STRING_BUILDER_TEST_ERROR_APPENDHEX;
+      errorCode = STRING_BUILDER_TEST_ERROR_APPENDF32;
       goto end;
     }
   }
