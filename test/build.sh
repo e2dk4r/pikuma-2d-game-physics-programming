@@ -3,6 +3,8 @@
 # TEST FUNCTIONS
 ################################################################
 
+failedTestCount=0
+
 # void RunTest(testExecutable, failMessage)
 RunTest() {
   executable="$1"
@@ -12,7 +14,7 @@ RunTest() {
   statusCode=$?
   if [ $statusCode -ne 0 ]; then
     echo "$failMessage code $statusCode"
-    exit $statusCode
+    failedTestCount=$(( $failedTestCount + 1 ))
   fi
 }
 
@@ -77,3 +79,8 @@ src="$pwd/hash_table_list_test.c"
 output="$outputDir/$(BasenameWithoutExtension "$src")"
 "$cc" $cflags $ldflags $inc -o "$output" $src
 RunTest "$output" "TEST hash table list failed."
+
+if [ $failedTestCount -ne 0 ]; then
+  echo $failedTestCount tests failed.
+  exit 1
+fi
