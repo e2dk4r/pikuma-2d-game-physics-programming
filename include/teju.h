@@ -967,8 +967,10 @@ FormatF32(struct string *stringBuffer, f32 value, u32 fractionCount)
 
   if (exponent < 0) {
     u32 absExponent = (u32)-exponent;
-    if (absExponent >= mantissaDigitCount)
+    if (absExponent > mantissaDigitCount)
       zeroBeforeCount = absExponent - 1;
+    else if (absExponent == mantissaDigitCount)
+      zeroBeforeCount = 1;
 
     if (absExponent >= mantissaDigitCount)
       pointIndex = 1;

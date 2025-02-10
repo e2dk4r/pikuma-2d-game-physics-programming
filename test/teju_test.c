@@ -7,6 +7,7 @@ enum teju_test_error {
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_0_9,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_1_0,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_1_00,
+  TEJU_TEST_ERROR_FORMATF32_EXPECTED_0_10,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_9_05,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_2_50,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_2_55,
@@ -15,6 +16,7 @@ enum teju_test_error {
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_0_9,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_1_0,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_1_00,
+  TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_0_10,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_2_50,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_2_55,
   TEJU_TEST_ERROR_FORMATF32_EXPECTED_0_00,
@@ -83,6 +85,13 @@ main(void)
       goto end;
     }
 
+    value = FormatF32(&stringBuffer, 0.1f, 2);
+    expected = STRING_FROM_ZERO_TERMINATED("0.10");
+    if (!IsStringEqual(&value, &expected)) {
+      errorCode = TEJU_TEST_ERROR_FORMATF32_EXPECTED_0_10;
+      goto end;
+    }
+
     value = FormatF32(&stringBuffer, 9.05f, 2);
     expected = STRING_FROM_ZERO_TERMINATED("9.05");
     if (!IsStringEqual(&value, &expected)) {
@@ -136,6 +145,13 @@ main(void)
     expected = STRING_FROM_ZERO_TERMINATED("-1.00");
     if (!IsStringEqual(&value, &expected)) {
       errorCode = TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_1_00;
+      goto end;
+    }
+
+    value = FormatF32(&stringBuffer, -0.1f, 2);
+    expected = STRING_FROM_ZERO_TERMINATED("-0.10");
+    if (!IsStringEqual(&value, &expected)) {
+      errorCode = TEJU_TEST_ERROR_FORMATF32_EXPECTED_NEGATIVE_0_10;
       goto end;
     }
 
