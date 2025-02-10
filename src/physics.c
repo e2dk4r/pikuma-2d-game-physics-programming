@@ -534,8 +534,102 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
       }
     }
 
-    // if is colliding
-    // TODO: penetration depeth Expanding Polytope Algorithm EPA
+    /*
+     * Entities collided.
+     * Find penetration depth using Expanding Polytope Algorithm (EPA)
+     * see: https://winter.dev/articles/epa-algorithm
+     */
+
+    // circular buffer
+    struct polytope {
+      u32 next; // index
+      v2 vertex;
+    };
+
+    struct polytope polytopeList[16];
+    struct polytope *polytopeHead = polytopeList + 0;
+    u32 polytopeCount = 0;
+
+#define POLYTOPE_APPEND(v)                                                                                             \
+  polytopeList[polytopeCount].vertex = v;                                                                              \
+  polytopeList[polytopeCount].next = 0;                                                                                \
+  if (polytopeCount != 0)                                                                                              \
+    polytopeList[polytopeCount - 1].next = polytopeCount;                                                              \
+  polytopeCount++
+
+#define POLYTOPE_INSERT(index, v)                                                                                      \
+  polytopeList[polytopeCount].vertex = v;                                                                              \
+  if (index != 0) {                                                                                                    \
+    polytopeList[polytopeCount].next = polytopeList[index - 1].next;                                                   \
+    polytopeList[index - 1].next = polytopeCount;                                                                      \
+  } else {                                                                                                             \
+    polytopeList[polytopeCount].next = 0;                                                                              \
+    polytopeHead = polytopeList + polytopeCount;                                                                       \
+  }                                                                                                                    \
+  polytopeCount++
+
+    POLYTOPE_APPEND(points[0]);
+    POLYTOPE_APPEND(points[1]);
+    POLYTOPE_APPEND(points[2]);
+
+    f32 minDistance = F32_MAX;
+    v2 minNormal;
+    u32 minIndex;
+
+    for (u32 iteration = 0; iteration < 16            /* iteration limit */
+                            && minDistance == F32_MAX /* used for continuing search for closest normal */
+                            && polytopeCount < ARRAY_COUNT(polytopeList); /* polytope limit */
+         iteration++) {
+
+      // find the edge closest to the origin
+      struct polytope *polytope = polytopeHead;
+      for (u32 polytopeIndex = 0; polytopeIndex < polytopeCount; polytopeIndex++) {
+        struct polytope *nextPolytope = polytopeList + polytope->next;
+        v2 A = polytope->vertex;
+        v2 B = nextPolytope->vertex;
+        v2 AB = v2_sub(B, A);
+
+        v2 normal = v2_normalize(v2_perp(AB));
+        f32 distance = v2_dot(A, normal);
+        if (distance < 0) {
+          distance *= -1.0f;
+          v2_neg_ref(&normal);
+        }
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          minNormal = normal;
+          minIndex = polytope->next;
+        }
+
+        polytope = nextPolytope;
+      }
+
+      // test if there is point further out in normal's direction
+      v2 support = Support(a, b, minNormal);
+      f32 supportDistance = v2_dot(support, minNormal);
+
+      f32 epsilon = 0.0001f;
+      if (Absolute(supportDistance - minDistance) > epsilon) {
+        POLYTOPE_INSERT(minIndex, support);
+        minDistance = F32_MAX;
+      }
+      // else found closest normal
+    }
+
+    if (minDistance == F32_MAX) {
+      isColliding = 0;
+      return isColliding;
+    }
+
+    contact->normal = minNormal;
+    contact->start = FindFurthestPoint(b, v2_neg(contact->normal));
+    contact->end = FindFurthestPoint(a, contact->normal);
+    contact->depth = minDistance;
+
+#undef POLYTOPE_INSERT
+#undef POLYTOPE_APPEND
+
   } break;
 
   default: {
