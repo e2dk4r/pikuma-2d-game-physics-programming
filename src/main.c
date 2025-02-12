@@ -32,6 +32,7 @@ typedef struct {
   string_builder sb;
 #if IS_BUILD_DEBUG
   string executablePath;
+  string workingDirectory;
   game_library lib;
 #endif
 } sdl_state;
@@ -51,11 +52,13 @@ GameLibraryReload(game_library *lib, sdl_state *state)
 {
   // create absolute path, instead of relative
   string_builder *sb = &state->sb;
-  string pwd = PathGetDirectory(&state->executablePath);
-  debug_assert(pwd.length > 0);
-  StringBuilderAppendString(sb, &pwd);
+  StringBuilderAppendString(sb, &state->workingDirectory);
   StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("/")); // seperator
+#if IS_PLATFORM_LINUX
   StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("game.so"));
+#elif IS_PLATFORM_WINDOWS
+  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("game.dll"));
+#endif
   string libPath = StringBuilderFlushZeroTerminated(sb);
 
   // get create time
@@ -420,6 +423,8 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
 
 #if IS_BUILD_DEBUG
   state->executablePath = StringFromZeroTerminated((u8 *)argv[0], 1024);
+  state->workingDirectory = PathGetDirectory(&state->executablePath);
+  debug_assert(state->workingDirectory.length > 0);
   GameLibraryReload(&state->lib, state);
 #endif
 
