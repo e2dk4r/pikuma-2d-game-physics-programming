@@ -34,6 +34,11 @@ typedef struct {
   string executablePath;
   string workingDirectory;
   game_library lib;
+
+  // record & playback
+  SDL_IOStream *recordStream;
+  u32 recordIndex;
+  u32 playbackIndex;
 #endif
 } sdl_state;
 
@@ -91,6 +96,96 @@ GameLibraryReload(game_library *lib, sdl_state *state)
   lib->loadedAt = libCreatedAt;
 }
 
+// RECORD & PLAYBACK
+comptime char RECORD_FILENAME[] = "state.rec";
+
+static void
+RecordBegin(sdl_state *state)
+{
+  state->recordIndex = 1;
+  game_memory *memory = &state->memory;
+
+  state->recordStream = SDL_IOFromFile(RECORD_FILENAME, "w");
+  debug_assert(state->recordStream != 0);
+
+  u64 totalStorageSize = memory->permanentStorageSize + memory->transientStorageSize;
+  u64 writtenBytes = SDL_WriteIO(state->recordStream, memory->permanentStorage, totalStorageSize);
+  debug_assert(writtenBytes == totalStorageSize);
+
+  string *message = &STRING_FROM_ZERO_TERMINATED("Record begin\n");
+  write(STDOUT_FILENO, message->value, message->length);
+}
+
+static void
+Record(sdl_state *state, game_input *input)
+{
+  u64 writtenBytes = SDL_WriteIO(state->recordStream, input, sizeof(*input));
+  debug_assert(writtenBytes == sizeof(*input));
+}
+
+static void
+RecordEnd(sdl_state *state)
+{
+  state->recordIndex = 0;
+
+  b8 isClosed = SDL_CloseIO(state->recordStream);
+  debug_assert(isClosed);
+
+  string *message = &STRING_FROM_ZERO_TERMINATED("Record end\n");
+  write(STDOUT_FILENO, message->value, message->length);
+}
+
+static void
+PlaybackBegin(sdl_state *state)
+{
+  state->playbackIndex = 1;
+  game_memory *memory = &state->memory;
+
+  state->recordStream = SDL_IOFromFile(RECORD_FILENAME, "r");
+  debug_assert(state->recordStream != 0);
+
+  u64 totalStorageSize = memory->permanentStorageSize + memory->transientStorageSize;
+  u64 readBytes = SDL_ReadIO(state->recordStream, memory->permanentStorage, totalStorageSize);
+  debug_assert(readBytes == totalStorageSize);
+
+  string *message = &STRING_FROM_ZERO_TERMINATED("Playback begin\n");
+  write(STDOUT_FILENO, message->value, message->length);
+}
+
+static void
+Playback(sdl_state *state, game_input *input)
+{
+  b8 readSuccessful = 0;
+
+  while (!readSuccessful) {
+    u64 readBytes = SDL_ReadIO(state->recordStream, input, sizeof(*input));
+    b8 isEndOfFile = readBytes == 0 && SDL_GetIOStatus(state->recordStream) == SDL_IO_STATUS_EOF;
+
+    if (isEndOfFile) {
+      game_memory *memory = &state->memory;
+      u64 totalStorageSize = memory->permanentStorageSize + memory->transientStorageSize;
+
+      SDL_SeekIO(state->recordStream, (s64)totalStorageSize, SDL_IO_SEEK_SET);
+      continue;
+    }
+
+    readSuccessful = 1;
+    debug_assert(readBytes == sizeof(*input));
+  }
+}
+
+static void
+PlaybackEnd(sdl_state *state)
+{
+  state->playbackIndex = 0;
+
+  b8 isClosed = SDL_CloseIO(state->recordStream);
+  debug_assert(isClosed);
+
+  string *message = &STRING_FROM_ZERO_TERMINATED("Playback end\n");
+  write(STDOUT_FILENO, message->value, message->length);
+}
+
 #endif
 
 SDL_AppResult
@@ -115,6 +210,12 @@ SDL_AppIterate(void *appstate)
 #if IS_BUILD_DEBUG
   GameLibraryReload(&state->lib, state);
   pfnGameUpdateAndRender GameUpdateAndRender = state->lib.GameUpdateAndRender;
+
+  // record & playback
+  if (state->recordIndex != 0)
+    Record(state, input);
+  if (state->playbackIndex != 0)
+    Playback(state, input);
 #endif
   GameUpdateAndRender(memory, input, renderer);
 
@@ -150,11 +251,11 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
 
   case SDL_EVENT_KEY_DOWN:
   case SDL_EVENT_KEY_UP: {
+    SDL_KeyboardEvent keyboardEvent = event->key;
     game_controller *keyboardAndMouse =
         GameControllerGetKeyboardAndMouse(input->controllers, ARRAY_COUNT(input->controllers));
 
 #if (0 && IS_BUILD_DEBUG)
-    SDL_KeyboardEvent keyboardEvent = event->key;
     string_builder *sb = &state->sb;
     StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("key scancode: "));
     StringBuilderAppendU64(sb, keyboardEvent.scancode);
@@ -166,6 +267,22 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     string s = StringBuilderFlush(sb);
     write(STDOUT_FILENO, s.value, s.length);
 #endif
+
+#if IS_BUILD_DEBUG
+    // record & playback
+    if (keyboardEvent.type == SDL_EVENT_KEY_DOWN && keyboardEvent.scancode == SDL_SCANCODE_L && !keyboardEvent.repeat) {
+      if (state->recordIndex == 0 && state->playbackIndex == 0) {
+        RecordBegin(state);
+      } else if (state->recordIndex != 0) {
+        RecordEnd(state);
+        PlaybackBegin(state);
+      } else {
+        PlaybackEnd(state);
+        RecordBegin(state);
+      }
+    }
+#endif
+
     b8 *keyboardState = (b8 *)SDL_GetKeyboardState(0);
     if (unlikely(!keyboardState))
       break;
