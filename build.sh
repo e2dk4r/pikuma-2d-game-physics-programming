@@ -414,6 +414,6 @@ if [ ! -e tags ] && [ $IsBuildDebug -eq 1 ]; then
   src="$src /usr/include/vulkan/vulkan_core.h"
   src="$src /usr/include/vulkan/vulkan_wayland.h"
 
-  echo ctags --fields=+iaS --extras=+q --c-kinds=+pf $src
   ctags --fields=+iaS --extras=+q --c-kinds=+pf $src
+  echo tags are generated
 fi
