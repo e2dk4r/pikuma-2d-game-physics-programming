@@ -164,6 +164,9 @@ Playback(sdl_state *state, game_input *input)
     if (isEndOfFile) {
       game_memory *memory = &state->memory;
       u64 totalStorageSize = memory->permanentStorageSize + memory->transientStorageSize;
+      SDL_SeekIO(state->recordStream, 0, SDL_IO_SEEK_SET);
+      u64 readBytes = SDL_ReadIO(state->recordStream, memory->permanentStorage, totalStorageSize);
+      debug_assert(readBytes == totalStorageSize);
 
       SDL_SeekIO(state->recordStream, (s64)totalStorageSize, SDL_IO_SEEK_SET);
       continue;
