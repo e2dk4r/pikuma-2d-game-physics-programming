@@ -126,6 +126,18 @@ StringEndsWith() {
   esac
 }
 
+# [0,1] StringEquals(left, right)
+StringEquals() {
+  left="$1"
+  right="$2"
+
+  if [ "$left" = "$right" ]; then
+    echo 1
+  else
+    echo 0
+  fi
+}
+
 # string Basename(path)
 Basename() {
   path="$1"
@@ -275,7 +287,8 @@ if [ ! -e "$OutputDir" ]; then
   echo '**/*' >> "$OutputDir/.hgignore"
 fi
 
-IsOSLinux=$(StringEndsWith "$(uname)" 'Linux')
+IsPlatformLinux=$(StringEquals "$(uname)" 'Linux')
+IsPlatformWindows=$(StringEquals "$(uname)" 'Windows')
 
 cc="${CC:-clang}"
 IsCompilerGCC=$(StringStartsWith "$("$cc" --version | head -n 1 -c 32)" "gcc")
@@ -295,7 +308,6 @@ cflags="$CFLAGS"
 # standard
 cflags="$cflags -std=c99"
 # performance
-cflags="$cflags -O3"
 if [ $(StringContains "$cflags" '-march=') -eq 0 ]; then
   cflags="$cflags -march=x86-64-v3"
 fi
@@ -312,7 +324,8 @@ cflags="$cflags -Wno-unused-function"
 cflags="$cflags -DCOMPILER_GCC=$IsCompilerGCC"
 cflags="$cflags -DCOMPILER_CLANG=$IsCompilerClang"
 
-cflags="$cflags -DIS_PLATFORM_LINUX=$IsOSLinux"
+cflags="$cflags -DIS_PLATFORM_LINUX=$IsPlatformLinux"
+cflags="$cflags -DIS_PLATFORM_WINDOWS=$IsPlatformWindows"
 
 cflags="$cflags -DIS_BUILD_DEBUG=$IsBuildDebug"
 if [ $IsBuildDebug -eq 1 ]; then
@@ -323,7 +336,7 @@ else
   cflags="$cflags -O2"
 fi
 
-if [ $IsOSLinux -eq 1 ]; then
+if [ $IsPlatformLinux -eq 1 ]; then
   # needed by c libraries
   cflags="$cflags -D_GNU_SOURCE=1"
   cflags="$cflags -D_XOPEN_SOURCE=700"
@@ -354,11 +367,41 @@ Log "================================================================"
 LIB_M='-lm'
 
 if [ $IsBuildEnabled -eq 1 ]; then
-  if [ $IsOSLinux -eq 0 ]; then
-    echo "Do not know how to compile on this OS"
-    echo "  OS: $(uname)"
-    exit 1
-  elif [ $IsOSLinux -eq 1 ]; then
+  if [ $IsPlatformWindows -eq 1 ]; then
+    ################################################################
+    # WINDOWS BUILD
+    ################################################################
+
+    LIBSDL_DIR="build/3rdparty/SDL3-3.2.4"
+    INC_LIBSDL="-I$LIBSDL_DIR-install/include"
+    LIB_LIBSDL="-L$LIBSDL_DIR-install/lib/x64 -lSDL3"
+    if [ ! -e build/SDL3.dll ]; then
+      cp "$LIBSDL_DIR-install/lib/x64/SDL3.dll" build/SDL3.dll
+    fi
+
+    if [ $IsBuildDebug -eq 1 ]; then
+      src="src/game.c"
+      output="build/$OUTPUT_NAME.dll"
+      inc="-Iinclude $INC_LIBSDL"
+      lib="$LIB_LIBSDL"
+
+      # HACK: Windows locks files that are belonging to process
+      mv "$output" "$output.old"
+
+      StartTimer
+      "$cc" --shared $cflags $ldflags $inc -o "$output" $src $lib
+      [ $? -eq 0 ] && echo "$OUTPUT_NAME.dll compiled in $(StopTimer) seconds."
+    fi
+
+    src="src/main.c"
+    output="build/$OUTPUT_NAME.exe"
+    inc="-Iinclude $INC_LIBSDL"
+    lib="$LIB_LIBSDL"
+    StartTimer
+    "$cc" $cflags $ldflags $inc -o "$output" $src $lib
+    [ $? -eq 0 ] && echo "$OUTPUT_NAME.exe compiled in $(StopTimer) seconds."
+
+  elif [ $IsPlatformLinux -eq 1 ]; then
     ################################################################
     # LINUX BUILD
     #      .--.
@@ -394,6 +437,10 @@ if [ $IsBuildEnabled -eq 1 ]; then
     StartTimer
     "$cc" $cflags $ldflags $inc -o "$output" $src $lib
     [ $? -eq 0 ] && echo "$OUTPUT_NAME compiled in $(StopTimer) seconds."
+  else
+    echo "Do not know how to compile on this OS"
+    echo "  OS: $(uname)"
+    exit 1
   fi
 fi
 

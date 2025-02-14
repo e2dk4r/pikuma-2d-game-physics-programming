@@ -3,6 +3,10 @@
 #include "text.h"
 #include "type.h"
 
+#if IS_PLATFORM_WINDOWS
+#include <intrin.h>
+#endif
+
 /*
  * Implemented by Cassio Neri
  * Modifications:
@@ -138,8 +142,8 @@ typedef struct {
  *
  * @returns The lower 64-bits value of the product.
  */
-inline static uint64_t
-teju_multiply(uint64_t const a, uint64_t const b, uint64_t *upper)
+inline static u64
+teju_multiply(u64 const a, u64 const b, u64 *upper)
 {
   return _umul128(a, b, upper);
 }

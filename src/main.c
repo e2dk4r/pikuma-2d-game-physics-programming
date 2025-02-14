@@ -1,7 +1,6 @@
-#include <unistd.h> // write()
-
 #include "compiler.h"
 #include "game.h"
+#include "log.h"
 #include "type.h"
 
 #if !IS_BUILD_DEBUG
@@ -80,6 +79,12 @@ GameLibraryReload(game_library *lib, sdl_state *state)
   if (lib->handle) {
     SDL_UnloadObject(lib->handle);
     lib->handle = 0;
+#if IS_PLATFORM_WINDOWS
+    // HACK: On windows to hot load our library, first we append old to
+    // filename then build new library. For some reason this gives library file
+    // used by another process error.
+    SDL_Delay(250);
+#endif
   }
 
   lib->handle = SDL_LoadObject((const char *)libPath.value);
@@ -90,7 +95,7 @@ GameLibraryReload(game_library *lib, sdl_state *state)
 
   {
     string *message = &STRING_FROM_ZERO_TERMINATED("Reloaded library!\n");
-    write(STDOUT_FILENO, message->value, message->length);
+    log(message);
   }
 
   lib->loadedAt = libCreatedAt;
@@ -113,7 +118,7 @@ RecordBegin(sdl_state *state)
   debug_assert(writtenBytes == totalStorageSize);
 
   string *message = &STRING_FROM_ZERO_TERMINATED("Record begin\n");
-  write(STDOUT_FILENO, message->value, message->length);
+  log(message);
 }
 
 static void
@@ -132,7 +137,7 @@ RecordEnd(sdl_state *state)
   debug_assert(isClosed);
 
   string *message = &STRING_FROM_ZERO_TERMINATED("Record end\n");
-  write(STDOUT_FILENO, message->value, message->length);
+  log(message);
 }
 
 static void
@@ -149,7 +154,7 @@ PlaybackBegin(sdl_state *state)
   debug_assert(readBytes == totalStorageSize);
 
   string *message = &STRING_FROM_ZERO_TERMINATED("Playback begin\n");
-  write(STDOUT_FILENO, message->value, message->length);
+  log(message);
 }
 
 static void
@@ -186,7 +191,7 @@ PlaybackEnd(sdl_state *state)
   debug_assert(isClosed);
 
   string *message = &STRING_FROM_ZERO_TERMINATED("Playback end\n");
-  write(STDOUT_FILENO, message->value, message->length);
+  log(message);
 }
 
 #endif
@@ -268,7 +273,7 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     StringBuilderAppendU64(sb, keyboardEvent.repeat);
     StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
     string s = StringBuilderFlush(sb);
-    write(STDOUT_FILENO, s.value, s.length);
+    log(&s);
 #endif
 
 #if IS_BUILD_DEBUG
@@ -338,7 +343,7 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     StringBuilderAppendF32(sb, mouseEvent.y, 2);
     StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
     string s = StringBuilderFlush(sb);
-    write(STDOUT_FILENO, s.value, s.length);
+    log(&s);
 #endif
   } break;
 

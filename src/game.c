@@ -1,16 +1,14 @@
 #include "game.h"
 #include "color.h"
+#include "log.h"
 #include "math.h"
 #include "renderer.h"
+
 #include "string_builder.h"
 
 #include "physics.c"
 #include "random.c"
 #include "renderer.c"
-
-#if IS_BUILD_DEBUG
-#include <unistd.h> // write()
-#endif
 
 static struct entity *
 EntityAdd(game_state *state, v2 position, f32 mass, volume *volume, v4 color)
@@ -111,7 +109,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     StringBuilderAppendF32(sb, dt, 4);
     StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
     string string = StringBuilderFlush(sb);
-    write(STDOUT_FILENO, string.value, string.length);
+    log(&string);
   }
 #endif
 
@@ -337,7 +335,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       string string = StringBuilderFlush(sb);
-      write(STDOUT_FILENO, string.value, string.length);
+      log(&string);
     }
 #endif
 
@@ -404,7 +402,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
         StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("NOT colliding."));
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
       string string = StringBuilderFlush(sb);
-      write(STDOUT_FILENO, string.value, string.length);
+      log(&string);
 #endif
     }
   }
