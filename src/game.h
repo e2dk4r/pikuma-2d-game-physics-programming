@@ -35,5 +35,8 @@ typedef struct {
 } transient_state;
 
 typedef void (*pfnGameUpdateAndRender)(game_memory *memory, game_input *input, game_renderer *renderer);
+#if IS_PLATFORM_WINDOWS
+__declspec(dllexport)
+#endif
 void
 GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *renderer);

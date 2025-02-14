@@ -104,16 +104,16 @@ ParseDuration(struct string *string, struct duration *duration)
   if (!string || string->length == 0 || string->length < 3)
     return 0;
 
-    // | Duration | Length      |
-    // |----------|-------------|
-    // | ns       | nanosecond  |
-    // | us       | microsecond |
-    // | ms       | millisecond |
-    // | sec      | second      |
-    // | min      | minute      |
-    // | hr       | hour        |
-    // | day      | day         |
-    // | wk       | week        |
+  // | Duration | Length      |
+  // |----------|-------------|
+  // | ns       | nanosecond  |
+  // | us       | microsecond |
+  // | ms       | millisecond |
+  // | sec      | second      |
+  // | min      | minute      |
+  // | hr       | hour        |
+  // | day      | day         |
+  // | wk       | week        |
 
 #define UNIT_STRING(variableName, zeroTerminatedString)                                                                \
   static struct string variableName = {                                                                                \
@@ -462,7 +462,11 @@ PathGetDirectory(struct string *path)
 
   u64 lastSlashIndex = path->length;
   for (u64 index = path->length - 1; index != 0; index--) {
+#if IS_PLATFORM_WINDOWS
+    if (path->value[index] == '\\') {
+#else
     if (path->value[index] == '/') {
+#endif
       lastSlashIndex = index;
       break;
     }
