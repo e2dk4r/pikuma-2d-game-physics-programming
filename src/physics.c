@@ -576,10 +576,9 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
     v2 minNormal;
     u32 minIndex;
 
-    for (u32 iteration = 0; iteration < 16            /* iteration limit */
-                            && minDistance == F32_MAX /* used for continuing search for closest normal */
-                            && polytopeCount < ARRAY_COUNT(polytopeList); /* polytope limit */
-         iteration++) {
+    while (minDistance == F32_MAX                       /* used for continuing search for closest normal */
+           && polytopeCount < ARRAY_COUNT(polytopeList) /* polytope limit */
+    ) {
 
       // find the edge closest to the origin
       struct polytope *polytope = polytopeHead;
@@ -615,11 +614,6 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
         minDistance = F32_MAX;
       }
       // else found closest normal
-    }
-
-    if (minDistance == F32_MAX) {
-      isColliding = 0;
-      return isColliding;
     }
 
     contact->normal = minNormal;
