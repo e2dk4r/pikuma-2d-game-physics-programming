@@ -450,7 +450,18 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
     case VOLUME_TYPE_BOX: {
       volume_box *box = VolumeGetBox(entity->volume);
       v2 dim = {box->width, box->height};
-      rect rect = RectCenterDim(entity->position, dim);
+      v2 position = entity->position;
+      rect rect = RectCenterDim(position, dim);
+
+      /* BUG: when is really big adding or subtracting does not change anything
+       * example:
+       *   (lldb) p position.e
+       * (f32[2])  ([0] = 1.07606722E+38, [1] = -3.22820166E+38)
+       */
+      v2 rectDim = RectGetDim(rect);
+      if (rectDim.x == 0.0f || rectDim.y == 0.0f)
+        continue;
+
       f32 rotation = entity->rotation;
       DrawRectRotated(renderer, rect, rotation, color);
     } break;
