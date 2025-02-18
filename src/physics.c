@@ -540,55 +540,27 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
      * see: https://winter.dev/articles/epa-algorithm
      */
 
-    // circular buffer
-    struct polytope {
-      u32 next; // index
-      v2 vertex;
-    };
-
-    struct polytope polytopeList[16];
-    struct polytope *polytopeHead = polytopeList + 0;
-    u32 polytopeCount = 0;
-
-#define POLYTOPE_APPEND(v)                                                                                             \
-  polytopeList[polytopeCount].vertex = v;                                                                              \
-  polytopeList[polytopeCount].next = 0;                                                                                \
-  if (polytopeCount != 0)                                                                                              \
-    polytopeList[polytopeCount - 1].next = polytopeCount;                                                              \
-  polytopeCount++
-
-#define POLYTOPE_INSERT(index, v)                                                                                      \
-  polytopeList[polytopeCount].vertex = v;                                                                              \
-  if (index != 0) {                                                                                                    \
-    polytopeList[polytopeCount].next = polytopeList[index - 1].next;                                                   \
-    polytopeList[index - 1].next = polytopeCount;                                                                      \
-  } else {                                                                                                             \
-    polytopeList[polytopeCount].next = 0;                                                                              \
-    polytopeHead = polytopeList + polytopeCount;                                                                       \
-  }                                                                                                                    \
-  polytopeCount++
-
-    POLYTOPE_APPEND(points[0]);
-    POLYTOPE_APPEND(points[1]);
-    POLYTOPE_APPEND(points[2]);
+    struct v2 polytope[16];
+    u8 vertexCount = ARRAY_COUNT(points);
+    memcpy(polytope, points, sizeof(*polytope) * vertexCount);
 
     f32 minDistance = F32_MAX;
     v2 minNormal;
-    u32 minIndex;
+    u8 minIndex;
 
-    while (minDistance == F32_MAX                       /* used for continuing search for closest normal */
-           && polytopeCount < ARRAY_COUNT(polytopeList) /* polytope limit */
+    while (minDistance == F32_MAX                 /* used for continuing search for closest normal */
+           && vertexCount < ARRAY_COUNT(polytope) /* polytope limit */
     ) {
 
       // find the edge closest to the origin
-      struct polytope *polytope = polytopeHead;
-      for (u32 polytopeIndex = 0; polytopeIndex < polytopeCount; polytopeIndex++) {
-        struct polytope *nextPolytope = polytopeList + polytope->next;
-        v2 A = polytope->vertex;
-        v2 B = nextPolytope->vertex;
+      for (u8 vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
+        u8 Aindex = vertexIndex;
+        u8 Bindex = (vertexIndex + 1) % vertexCount;
+        v2 A = polytope[Aindex];
+        v2 B = polytope[Bindex];
         v2 AB = v2_sub(B, A);
-
         v2 normal = v2_normalize(v2_perp(AB));
+        debug_assert(!(normal.x == 0 && normal.y == 0));
         f32 distance = v2_dot(A, normal);
         if (distance < 0) {
           distance *= -1.0f;
@@ -598,10 +570,8 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
         if (distance < minDistance) {
           minDistance = distance;
           minNormal = normal;
-          minIndex = polytope->next;
+          minIndex = Bindex;
         }
-
-        polytope = nextPolytope;
       }
 
       // test if there is point further out in normal's direction
@@ -610,7 +580,25 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
 
       f32 epsilon = 0.0001f;
       if (Absolute(supportDistance - minDistance) > epsilon) {
-        POLYTOPE_INSERT(minIndex, support);
+        /* expand polytope, insert support to polytope
+         * CASE 1:
+         *   1 2 3 4
+         * 0
+         * ---------
+         * 0 1 2 3 4
+         *
+         * CASE 2:
+         * 0   2 3 4
+         *   1
+         * ---------
+         * 0 1 2 3 4
+         */
+        u8 before = minIndex;
+        u8 after = vertexCount - before;
+        memcpy(polytope + (before + 1), polytope + before, sizeof(*polytope) * after);
+        polytope[minIndex] = support;
+        vertexCount++;
+
         minDistance = F32_MAX;
       }
       // else found closest normal
@@ -620,10 +608,6 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
     contact->start = FindFurthestPoint(b, v2_neg(contact->normal));
     contact->end = FindFurthestPoint(a, contact->normal);
     contact->depth = minDistance;
-
-#undef POLYTOPE_INSERT
-#undef POLYTOPE_APPEND
-
   } break;
 
   default: {
