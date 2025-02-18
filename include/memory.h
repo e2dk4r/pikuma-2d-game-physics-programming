@@ -1,7 +1,7 @@
 #pragma once
 
 // for linked list implementation, see test/linked_list_test.c
-// for linked list implementation, see test/hash_table_list_test.c
+// for hash table implementation, see test/hash_table_list_test.c
 
 #include "assert.h"
 #include "math.h"
