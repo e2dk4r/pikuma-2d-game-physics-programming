@@ -416,7 +416,7 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
   if (a->volume->type > b->volume->type) {
     struct entity *tmp = a;
     a = b;
-    b = a;
+    b = tmp;
   }
 
   b8 isColliding = 0;
