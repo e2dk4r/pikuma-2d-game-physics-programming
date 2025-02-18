@@ -80,6 +80,13 @@ output="$outputDir/$(BasenameWithoutExtension "$src")"
 "$cc" $cflags $ldflags $inc -o "$output" $src
 RunTest "$output" "TEST hash table list failed."
 
+### doubly_linked_list
+inc="-I$ProjectRoot/include"
+src="$pwd/doubly_linked_list_test.c"
+output="$outputDir/$(BasenameWithoutExtension "$src")"
+"$cc" $cflags $ldflags $inc -o "$output" $src
+RunTest "$output" "TEST doubly linked list failed."
+
 if [ $failedTestCount -ne 0 ]; then
   echo $failedTestCount tests failed.
   exit 1
