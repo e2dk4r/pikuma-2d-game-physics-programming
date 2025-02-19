@@ -122,13 +122,13 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   for (u32 controllerIndex = 0; controllerIndex < ARRAY_COUNT(input->controllers); controllerIndex++) {
     game_controller *controller = input->controllers + controllerIndex;
 
-    v2 input = {controller->lsX, controller->lsY};
-    if (v2_length_square(input) > 1.0f) {
-      v2_normalize_ref(&input);
+    v2 inputVector = {controller->lsX, controller->lsY};
+    if (v2_length_square(inputVector) > 1.0f) {
+      v2_normalize_ref(&inputVector);
       // NOTE: disabled assertion because of floating point error
       // debug_assert(v2_length_square(input) == 1.0f);
     }
-    v2_add_ref(&inputForce, input);
+    v2_add_ref(&inputForce, inputVector);
 
     if (controllerIndex == GAME_CONTROLLER_KEYBOARD_AND_MOUSE_INDEX) {
       v2 surfaceHalfDim = RectGetHalfDim(RendererGetSurfaceRect(renderer));

@@ -575,7 +575,7 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
       }
 
       // test if there is point further out in normal's direction
-      v2 support = Support(a, b, minNormal);
+      support = Support(a, b, minNormal);
       f32 supportDistance = v2_dot(support, minNormal);
 
       f32 epsilon = 0.0001f;

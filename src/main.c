@@ -170,7 +170,7 @@ Playback(sdl_state *state, game_input *input)
       game_memory *memory = &state->memory;
       u64 totalStorageSize = memory->permanentStorageSize + memory->transientStorageSize;
       SDL_SeekIO(state->recordStream, 0, SDL_IO_SEEK_SET);
-      u64 readBytes = SDL_ReadIO(state->recordStream, memory->permanentStorage, totalStorageSize);
+      readBytes = SDL_ReadIO(state->recordStream, memory->permanentStorage, totalStorageSize);
       debug_assert(readBytes == totalStorageSize);
 
       SDL_SeekIO(state->recordStream, (s64)totalStorageSize, SDL_IO_SEEK_SET);
@@ -364,9 +364,9 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     if (gamepadIndex < 0)
       break;
     for (u32 inputIndex = 0; inputIndex < ARRAY_COUNT(state->inputs); inputIndex++) {
-      game_input *input = state->inputs + inputIndex;
+      game_input *gameInput = state->inputs + inputIndex;
       game_controller *controller =
-          GameControllerGetGamepad(input->controllers, ARRAY_COUNT(input->controllers), (u32)gamepadIndex);
+          GameControllerGetGamepad(gameInput->controllers, ARRAY_COUNT(gameInput->controllers), (u32)gamepadIndex);
       memset(controller, 0, sizeof(*controller));
     }
   } break;

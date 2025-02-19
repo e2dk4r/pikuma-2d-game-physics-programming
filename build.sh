@@ -316,6 +316,7 @@ cflags="$cflags -fomit-frame-pointer"
 # warnings
 cflags="$cflags -Wall -Werror"
 cflags="$cflags -Wconversion"
+cflags="$cflags -Wshadow"
 cflags="$cflags -Wno-unused-parameter"
 cflags="$cflags -Wno-unused-result"
 cflags="$cflags -Wno-missing-braces"
