@@ -6,7 +6,8 @@
  *
  * For visualization open doc/doubly_linked_list.excalidraw at https://excalidraw.com/
  * See also:
- * - https://www.youtube.com/watch?v=IroPQ150F6c "Andrew Kelley Practical Data Oriented Design (DoD)"
+ * - https://vimeo.com/649009599 "Andrew Kelley Practical Data Oriented Design (DoD)"
+ *   @YouTube: https://www.youtube.com/watch?v=IroPQ150F6c
  */
 
 struct entry {
