@@ -375,7 +375,6 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
   case SDL_EVENT_GAMEPAD_BUTTON_UP: {
     SDL_GamepadButtonEvent buttonEvent = event->gbutton;
     s32 gamepadIndex = SDL_GetGamepadPlayerIndexForID(buttonEvent.which);
-    debug_assert(gamepadIndex >= 0);
     if (gamepadIndex < 0)
       break;
     game_controller *controller =
