@@ -604,6 +604,11 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
       // else found closest normal
     }
 
+    // TODO: Is contact information correct?
+    // see:
+    //   - "Dirk Gregorius - Robust Contact Creation for Physics Simulation"
+    //     https://gdcvault.com/play/1022193/Physics-for-Game-Programmers-Robust
+    //     https://cdn-a.blazestreaming.com/out/v1/a914e787bbfd48af89b2fdc4721cb75c/38549d9a185b445888c6fbc2e2e792e9/50413c5b8a95441e919f0a1579606e47/index.m3u8
     contact->normal = minNormal;
     contact->start = FindFurthestPoint(b, v2_neg(contact->normal));
     contact->end = FindFurthestPoint(a, contact->normal);
