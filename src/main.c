@@ -434,7 +434,6 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     SDL_GamepadAxisEvent axisEvent = event->gaxis;
 
     s32 gamepadIndex = SDL_GetGamepadPlayerIndexForID(axisEvent.which);
-    debug_assert(gamepadIndex >= 0);
     if (gamepadIndex < 0)
       break;
 
