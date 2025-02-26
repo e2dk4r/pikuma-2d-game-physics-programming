@@ -555,7 +555,7 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
       // find the edge closest to the origin
       for (u8 vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
         u8 Aindex = vertexIndex;
-        u8 Bindex = (vertexIndex + 1) % vertexCount;
+        u8 Bindex = (u8)((vertexIndex + 1) % vertexCount);
         v2 A = polytope[Aindex];
         v2 B = polytope[Bindex];
         v2 AB = v2_sub(B, A);
