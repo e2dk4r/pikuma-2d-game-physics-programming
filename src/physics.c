@@ -544,13 +544,14 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
     u8 vertexCount = ARRAY_COUNT(points);
     memcpy(polytope, points, sizeof(*polytope) * vertexCount);
 
-    f32 minDistance = F32_MAX;
-    v2 minNormal;
-    u8 minIndex;
+    struct edge {
+      u8 index;
+      f32 distance;
+      v2 normal;
+    } closestEdge;
 
-    while (minDistance == F32_MAX                 /* used for continuing search for closest normal */
-           && vertexCount < ARRAY_COUNT(polytope) /* polytope limit */
-    ) {
+    while (vertexCount < ARRAY_COUNT(polytope)) {
+      closestEdge.distance = F32_MAX;
 
       // find the edge closest to the origin
       for (u8 vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
@@ -560,48 +561,46 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
         v2 B = polytope[Bindex];
         v2 AB = v2_sub(B, A);
         v2 normal = v2_normalize(v2_perp(AB));
-        debug_assert(!(normal.x == 0 && normal.y == 0));
+        debug_assert(v2_length_square(normal) != 0);
         f32 distance = v2_dot(A, normal);
         if (distance < 0) {
           distance *= -1.0f;
           v2_neg_ref(&normal);
         }
 
-        if (distance < minDistance) {
-          minDistance = distance;
-          minNormal = normal;
-          minIndex = Bindex;
+        if (distance < closestEdge.distance) {
+          closestEdge.distance = distance;
+          closestEdge.normal = normal;
+          closestEdge.index = Bindex;
         }
       }
 
       // test if there is point further out in normal's direction
-      support = Support(a, b, minNormal);
-      f32 supportDistance = v2_dot(support, minNormal);
+      support = Support(a, b, closestEdge.normal);
+      f32 supportDistance = v2_dot(support, closestEdge.normal);
 
       f32 epsilon = 0.0001f;
-      if (Absolute(supportDistance - minDistance) > epsilon) {
-        /* expand polytope, insert support to polytope
-         * CASE 1:
-         *   1 2 3 4
-         * 0
-         * ---------
-         * 0 1 2 3 4
-         *
-         * CASE 2:
-         * 0   2 3 4
-         *   1
-         * ---------
-         * 0 1 2 3 4
-         */
-        u8 before = minIndex;
-        u8 after = vertexCount - before;
-        memcpy(polytope + (before + 1), polytope + before, sizeof(*polytope) * after);
-        polytope[minIndex] = support;
-        vertexCount++;
-
-        minDistance = F32_MAX;
+      if (Absolute(supportDistance - closestEdge.distance) <= epsilon) {
+        break;
       }
-      // else found closest normal
+      /* expand polytope, insert support to polytope
+       * CASE 1:
+       *   1 2 3 4
+       * 0
+       * ---------
+       * 0 1 2 3 4
+       *
+       * CASE 2:
+       * 0   2 3 4
+       *   1
+       * ---------
+       * 0 1 2 3 4
+       */
+      u8 before = closestEdge.index;
+      u8 after = vertexCount - before;
+      memcpy(polytope + (before + 1), polytope + before, sizeof(*polytope) * after);
+      polytope[before] = support;
+      vertexCount++;
     }
 
     // TODO: Is contact information correct?
@@ -609,10 +608,10 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
     //   - "Dirk Gregorius - Robust Contact Creation for Physics Simulation"
     //     https://gdcvault.com/play/1022193/Physics-for-Game-Programmers-Robust
     //     https://cdn-a.blazestreaming.com/out/v1/a914e787bbfd48af89b2fdc4721cb75c/38549d9a185b445888c6fbc2e2e792e9/50413c5b8a95441e919f0a1579606e47/index.m3u8
-    contact->normal = minNormal;
+    contact->normal = closestEdge.normal;
+    contact->depth = closestEdge.distance;
     contact->start = FindFurthestPoint(b, v2_neg(contact->normal));
     contact->end = FindFurthestPoint(a, contact->normal);
-    contact->depth = minDistance;
   } break;
 
   default: {
