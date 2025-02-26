@@ -316,7 +316,11 @@ cflags="$cflags -fomit-frame-pointer"
 # warnings
 cflags="$cflags -Wall -Werror"
 cflags="$cflags -Wconversion"
-cflags="$cflags -Wshadow"
+if [ $IsCompilerGCC -eq 1 ]; then
+  cflags="$cflags -Wshadow=local"
+elif [ $IsCompilerClang -eq 1 ]; then
+  cflags="$cflags -Wshadow"
+fi
 cflags="$cflags -Wno-unused-parameter"
 cflags="$cflags -Wno-unused-result"
 cflags="$cflags -Wno-missing-braces"
