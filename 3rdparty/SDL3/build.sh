@@ -56,6 +56,7 @@ fi
 # BUILD
 ################################################################
 if [ ! -e "$LIBSDL_DIR-install/lib64/libSDL${LIBSDL_VERSION%%.*}.so" ]; then
+  StartTimer
   cmake -G Ninja -S "$LIBSDL_DIR" -B "$LIBSDL_DIR/build" -D CMAKE_INSTALL_PREFIX="$LIBSDL_DIR-install" \
     -D CMAKE_BUILD_TYPE=Release \
     -D SDL_DUMMYAUDIO=OFF \
