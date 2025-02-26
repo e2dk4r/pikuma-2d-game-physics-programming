@@ -95,7 +95,7 @@ GameLibraryReload(game_library *lib, sdl_state *state)
 
   {
     string *message = &STRING_FROM_ZERO_TERMINATED("Reloaded library!\n");
-    log(message);
+    LogMessage(message);
   }
 
   lib->loadedAt = libCreatedAt;
@@ -118,7 +118,7 @@ RecordBegin(sdl_state *state)
   debug_assert(writtenBytes == totalStorageSize);
 
   string *message = &STRING_FROM_ZERO_TERMINATED("Record begin\n");
-  log(message);
+  LogMessage(message);
 }
 
 static void
@@ -137,7 +137,7 @@ RecordEnd(sdl_state *state)
   debug_assert(isClosed);
 
   string *message = &STRING_FROM_ZERO_TERMINATED("Record end\n");
-  log(message);
+  LogMessage(message);
 }
 
 static void
@@ -154,7 +154,7 @@ PlaybackBegin(sdl_state *state)
   debug_assert(readBytes == totalStorageSize);
 
   string *message = &STRING_FROM_ZERO_TERMINATED("Playback begin\n");
-  log(message);
+  LogMessage(message);
 }
 
 static void
@@ -191,7 +191,7 @@ PlaybackEnd(sdl_state *state)
   debug_assert(isClosed);
 
   string *message = &STRING_FROM_ZERO_TERMINATED("Playback end\n");
-  log(message);
+  LogMessage(message);
 }
 
 #endif

@@ -2,13 +2,13 @@
 
 #include "text.h"
 static void
-log(struct string *message);
+LogMessage(struct string *message);
 
 #if IS_PLATFORM_LINUX
 #include <unistd.h> // write()
 
 static inline void
-log(struct string *message)
+LogMessage(struct string *message)
 {
   write(STDOUT_FILENO, message->value, message->length);
 }
@@ -18,7 +18,7 @@ log(struct string *message)
 #include <windows.h>
 
 static inline void
-log(struct string *message)
+LogMessage(struct string *message)
 {
   HANDLE outputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
   WriteFile(outputHandle, message->value, (u32)message->length, 0, 0);

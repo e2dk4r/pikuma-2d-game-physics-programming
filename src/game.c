@@ -335,7 +335,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
       StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
 
       string string = StringBuilderFlush(sb);
-      log(&string);
+      LogMessage(&string);
     }
 #endif
 
