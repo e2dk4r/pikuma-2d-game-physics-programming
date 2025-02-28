@@ -484,7 +484,7 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
         } else {
           v2 newPoints[] = {pointA};
           pointCount = ARRAY_COUNT(newPoints);
-          memcpy(points, newPoints, pointCount);
+          memcpy(points, newPoints, sizeof(*points) * pointCount);
 
           direction = ao;
         }
@@ -504,7 +504,7 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
           // Line({a, b}, direction)
           v2 newPoints[] = {pointB, pointA};
           pointCount = ARRAY_COUNT(newPoints);
-          memcpy(points, newPoints, pointCount);
+          memcpy(points, newPoints, sizeof(*points) * pointCount);
 
           direction = abPerp;
           continue;
@@ -515,7 +515,7 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
           // Line({a, c}, direction)
           v2 newPoints[] = {pointC, pointA};
           pointCount = ARRAY_COUNT(newPoints);
-          memcpy(points, newPoints, pointCount);
+          memcpy(points, newPoints, sizeof(*points) * pointCount);
 
           direction = acPerp;
           continue;
