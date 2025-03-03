@@ -480,7 +480,14 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
           // if ab and ao is in same direction
           // direction is perpendicular to the edge that points to origin
           //   ab × ao × ab
-          direction = TripleCrossProduct(ab, ao, ab);
+
+          if (ab.y == 0.0f) {
+            // edge case
+            // TripleCrossProduct() fails
+            direction = v2_perp(ab);
+          } else {
+            direction = TripleCrossProduct(ab, ao, ab);
+          }
         } else {
           v2 newPoints[] = {pointA};
           pointCount = ARRAY_COUNT(newPoints);
