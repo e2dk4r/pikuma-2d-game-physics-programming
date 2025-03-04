@@ -350,10 +350,6 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
   // when gamepad is added, open gamepad
   case SDL_EVENT_GAMEPAD_ADDED: {
     SDL_GamepadDeviceEvent deviceEvent = event->gdevice;
-    s32 gamepadIndex = SDL_GetGamepadPlayerIndexForID(deviceEvent.which);
-    if (gamepadIndex < 0 || gamepadIndex >= ARRAY_COUNT(input->controllers) - 1 /* index 0 is reserved for keyboard */)
-      break;
-
     SDL_OpenGamepad(deviceEvent.which);
   } break;
 
