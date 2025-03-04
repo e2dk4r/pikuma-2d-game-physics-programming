@@ -481,12 +481,11 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
           // direction is perpendicular to the edge that points to origin
           //   ab × ao × ab
 
-          if (ab.y == 0.0f) {
+          direction = TripleCrossProduct(ab, ao, ab);
+          if (v2_length_square(direction) == 0.0f) {
             // edge case
             // TripleCrossProduct() fails
             direction = v2_perp(ab);
-          } else {
-            direction = TripleCrossProduct(ab, ao, ab);
           }
         } else {
           v2 newPoints[] = {pointA};
