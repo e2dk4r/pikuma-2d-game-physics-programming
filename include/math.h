@@ -326,6 +326,120 @@ typedef struct v3 {
 } v3;
 
 static inline void
+v3_add_ref(v3 *a, v3 b)
+{
+  a->x += b.x;
+  a->y += b.y;
+  a->z += b.z;
+}
+
+static inline v3
+v3_add(v3 a, v3 b)
+{
+  v3_add_ref(&a, b);
+  return a;
+}
+
+static inline void
+v3_sub_ref(v3 *a, v3 b)
+{
+  a->x -= b.x;
+  a->y -= b.y;
+  a->z -= b.z;
+}
+
+static inline v3
+v3_sub(v3 a, v3 b)
+{
+  v3_sub_ref(&a, b);
+  return a;
+}
+
+static inline void
+v3_scale_ref(v3 *a, f32 scaler)
+{
+  a->x *= scaler;
+  a->y *= scaler;
+  a->z *= scaler;
+}
+
+static inline v3
+v3_scale(v3 a, f32 scaler)
+{
+  v3_scale_ref(&a, scaler);
+  return a;
+}
+
+static inline f32
+v3_dot(v3 a, v3 b)
+{
+  return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+static inline void
+v3_hadamard_ref(v3 *a, v3 b)
+{
+  a->x *= b.x;
+  a->y *= b.y;
+  a->z *= b.z;
+}
+
+static inline v3
+v3_hadamard(v3 a, v3 b)
+{
+  v3_hadamard_ref(&a, b);
+  return a;
+}
+
+static inline f32
+v3_length_square(v3 a)
+{
+  return v3_dot(a, a);
+}
+
+static inline f32
+v3_length(v3 a)
+{
+  return SquareRoot(v3_length_square(a));
+}
+
+static inline void
+v3_normalize_ref(v3 *a)
+{
+  if (v3_length_square(*a) == 0.0f) {
+    a->x = 0.0f;
+    a->y = 0.0f;
+    a->z = 0.0f;
+    return;
+  }
+
+  f32 length = v3_length(*a);
+  a->x /= length;
+  a->y /= length;
+  a->z /= length;
+}
+
+static inline v3
+v3_normalize(v3 a)
+{
+  v3_normalize_ref(&a);
+  return a;
+}
+
+static inline void
+v3_neg_ref(v3 *a)
+{
+  v3_scale_ref(a, -1.0f);
+}
+
+static inline v3
+v3_neg(v3 a)
+{
+  v3_neg_ref(&a);
+  return a;
+}
+
+static inline void
 v3_cross_ref(v3 *a, v3 b)
 {
   /* see:
