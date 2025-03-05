@@ -395,45 +395,38 @@ Support(struct entity *a, struct entity *b, v2 direction)
 }
 
 static b8
-IsSameDirection(v2 direction, v2 ao)
+IsSameDirection(v3 direction, v3 ao)
 {
-  return v2_dot(direction, ao) > 0.0f;
-}
-
-static v2
-TripleCrossProduct(v2 a, v2 b, v2 c)
-{
-  v3 A = {.xy = a};
-  v3 B = {.xy = b};
-  v3 C = {.xy = c};
-  v3 cross = v3_cross(v3_cross(A, B), C);
-  return cross.xy;
+  return v3_dot(direction, ao) > 0.0f;
 }
 
 static b8
-CollisionDetect(struct entity *a, struct entity *b, contact *contact)
+CollisionDetect(struct entity *entityA, struct entity *entityB, contact *contact)
 {
-  if (a->volume->type > b->volume->type) {
-    struct entity *tmp = a;
-    a = b;
-    b = tmp;
+  if (entityA->volume->type > entityB->volume->type) {
+    struct entity *tmp = entityA;
+    entityA = entityB;
+    entityB = tmp;
   }
 
   b8 isColliding = 0;
 
-  switch (a->volume->type | b->volume->type) {
+  switch (entityA->volume->type | entityB->volume->type) {
   case VOLUME_TYPE_CIRCLE | VOLUME_TYPE_CIRCLE: {
-    volume_circle *circleA = VolumeGetCircle(a->volume);
-    volume_circle *circleB = VolumeGetCircle(b->volume);
+    volume_circle *circleA = VolumeGetCircle(entityA->volume);
+    volume_circle *circleB = VolumeGetCircle(entityB->volume);
 
-    v2 distance = v2_sub(b->position, a->position);
+    v2 positionA = entityA->position;
+    v2 positionB = entityB->position;
+
+    v2 distance = v2_sub(positionB, positionA);
     isColliding = v2_length_square(distance) <= Square(circleA->radius + circleB->radius);
     if (!isColliding)
       return isColliding;
 
     contact->normal = v2_normalize(distance);
-    contact->start = v2_sub(b->position, v2_scale(contact->normal, circleB->radius));
-    contact->end = v2_add(a->position, v2_scale(contact->normal, circleA->radius));
+    contact->start = v2_sub(positionB, v2_scale(contact->normal, circleB->radius));
+    contact->end = v2_add(positionA, v2_scale(contact->normal, circleA->radius));
     contact->depth = v2_length(v2_sub(contact->end, contact->start));
   } break;
 
@@ -444,10 +437,10 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
      * - https://www.youtube.com/watch?v=Qupqu1xe7Io "Implementing GJK - 2006"
      */
     // get initial support point in any direction
-    v2 support = Support(a, b, V2(1.0f, 0.0f));
+    v2 support = Support(entityA, entityB, V2(1.0f, 0.0f));
 
     // simplex is array of points, max of 3 for 2D
-    v2 points[3] = {};
+    v2 points[3];
     points[0] = support;
     u32 pointCount = 1;
 
@@ -455,7 +448,7 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
     v2 direction = v2_neg(support);
 
     while (!isColliding) {
-      support = Support(a, b, direction);
+      support = Support(entityA, entityB, direction);
       if (v2_dot(support, direction) <= 0) {
         // did not pass origin in search direction
         // no collision / no intersection
@@ -469,66 +462,52 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
 
       switch (pointCount) {
       case 2: {
-        // if simplex is line
-        v2 pointA = points[1]; // new point, just got added
-        v2 pointB = points[0]; // old point, was in the simplex before
+        // when simplex is line segment
+        v3 a = {.xy = points[1]};
+        v3 b = {.xy = points[0]};
 
-        v2 ab = v2_sub(pointB, pointA); // a to b
-        v2 ao = v2_neg(pointA);         // a to origin
+        v3 ab = v3_sub(b, a);
+        v3 ao = v3_neg(a);
 
-        if (IsSameDirection(ab, ao)) {
-          // if ab and ao is in same direction
-          // direction is perpendicular to the edge that points to origin
-          //   ab × ao × ab
-
-          direction = TripleCrossProduct(ab, ao, ab);
-          if (v2_length_square(direction) == 0.0f) {
-            // edge case
-            // TripleCrossProduct() fails
-            direction = v2_perp(ab);
-          }
+        v2 abPerp = v3_cross(v3_cross(ab, ao), ab).xy;
+        if (v2_length_square(abPerp) == 0.0f) {
+          isColliding = 1;
         } else {
-          v2 newPoints[] = {pointA};
-          pointCount = ARRAY_COUNT(newPoints);
-          memcpy(points, newPoints, sizeof(*points) * pointCount);
-
-          direction = ao;
+          direction = abPerp;
         }
+
       } break;
       case 3: {
-        // if simplex is triangle
-        v2 pointA = points[2]; // new point, that just got added
-        v2 pointB = points[1];
-        v2 pointC = points[0];
+        // when simplex forms triangle
+        v3 a = {.xy = points[2]}; // new point, that just got added
+        v3 b = {.xy = points[1]};
+        v3 c = {.xy = points[0]};
 
-        v2 ab = v2_sub(pointB, pointA);
-        v2 ac = v2_sub(pointC, pointA);
-        v2 ao = v2_neg(pointA);
+        v3 ab = v3_sub(b, a);
+        v3 ac = v3_sub(c, a);
+        v3 ao = v3_neg(a);
 
-        v2 abPerp = TripleCrossProduct(ac, ab, ab);
-        if (IsSameDirection(abPerp, ao)) {
-          // Line({a, b}, direction)
-          v2 newPoints[] = {pointB, pointA};
-          pointCount = ARRAY_COUNT(newPoints);
-          memcpy(points, newPoints, sizeof(*points) * pointCount);
+        v3 abcNormal = v3_cross(ab, ac);
+        v3 abNormal = v3_cross(ab, abcNormal);
+        v3 acNormal = v3_cross(abcNormal, ac);
 
-          direction = abPerp;
-          continue;
+        if (IsSameDirection(abNormal, ao)) {
+          direction = v3_cross(v3_cross(ab, ao), ab).xy;
+
+          points[0] = b.xy;
+          points[1] = a.xy;
+          pointCount = 2;
+        } else if (IsSameDirection(acNormal, ao)) {
+          direction = v3_cross(v3_cross(ac, ao), ac).xy;
+
+          points[0] = c.xy;
+          points[1] = a.xy;
+          pointCount = 2;
+        } else {
+          // must be inside of triangle
+          isColliding = 1;
+          break;
         }
-
-        v2 acPerp = TripleCrossProduct(ab, ac, ac);
-        if (IsSameDirection(acPerp, ao)) {
-          // Line({a, c}, direction)
-          v2 newPoints[] = {pointC, pointA};
-          pointCount = ARRAY_COUNT(newPoints);
-          memcpy(points, newPoints, sizeof(*points) * pointCount);
-
-          direction = acPerp;
-          continue;
-        }
-
-        // must be inside of triangle
-        isColliding = 1;
       } break;
       }
     }
@@ -541,7 +520,7 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
 
     struct v2 polytope[16];
     u8 vertexCount = ARRAY_COUNT(points);
-    memcpy(polytope, points, sizeof(*polytope) * vertexCount);
+    memcpy(polytope, points, sizeof(*points) * vertexCount);
 
     struct edge {
       u8 index;
@@ -575,7 +554,7 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
       }
 
       // test if there is point further out in normal's direction
-      support = Support(a, b, closestEdge.normal);
+      support = Support(entityA, entityB, closestEdge.normal);
       f32 supportDistance = v2_dot(support, closestEdge.normal);
 
       f32 epsilon = 0.0001f;
@@ -609,8 +588,8 @@ CollisionDetect(struct entity *a, struct entity *b, contact *contact)
     //     https://cdn-a.blazestreaming.com/out/v1/a914e787bbfd48af89b2fdc4721cb75c/38549d9a185b445888c6fbc2e2e792e9/50413c5b8a95441e919f0a1579606e47/index.m3u8
     contact->normal = closestEdge.normal;
     contact->depth = closestEdge.distance;
-    contact->start = FindFurthestPoint(b, v2_neg(contact->normal));
-    contact->end = FindFurthestPoint(a, contact->normal);
+    contact->start = FindFurthestPoint(entityB, v2_neg(contact->normal));
+    contact->end = FindFurthestPoint(entityA, contact->normal);
   } break;
 
   default: {
