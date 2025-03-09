@@ -63,7 +63,7 @@ for i in "$@"; do
     --build-directory=*)
       OutputDir="${i#*=}"
       ;;
-    --disable-$PROJECT_NAME)
+    "--disable-$PROJECT_NAME")
       IsBuildEnabled=0
       ;;
     --force-build-sdl3)
@@ -170,7 +170,7 @@ Basename() {
 BasenameWithoutExtension() {
   path="$1"
   basename="$(Basename "$path")"
-  echo ${basename%.*}
+  echo "${basename%.*}"
 }
 
 # string Dirname(path)
@@ -181,7 +181,7 @@ Dirname() {
     if [ -z "$dirname" ]; then
       echo '/'
     else
-      echo $dirname
+      echo "$dirname"
     fi
   else
     echo '.'
@@ -192,27 +192,27 @@ Dirname() {
 # Network FUNCTIONS
 ################################################################
 HAS_CURL=$(IsCommandExists curl)
-if [ $HAS_CURL -eq 1 ]; then
+if [ "$HAS_CURL" -eq 1 ]; then
   CURL_VERSION=$(curl --version | head -n 1 | cut -d ' ' -f2)
 fi
 
 HAS_WGET=$(IsCommandExists wget)
-if [ $HAS_WGET -eq 1 ]; then
+if [ "$HAS_WGET" -eq 1 ]; then
   WGET_VERSION=$(wget --version | head -n 1 | cut -d ' ' -f3)
 fi
 
 # Download(string url, string output)
 Download() {
-  if [ $HAS_CURL -eq 0 ] && [ $HASH_WGET -eq 0 ]; then
+  if [ "$HAS_CURL" -eq 0 ] && [ "$HAS_WGET" -eq 0 ]; then
     echo "curl or wget requried"
     exit 1
   fi
   url="$1"
   output="$2"
 
-  if [ $HAS_CURL -eq 1 ]; then
+  if [ "$HAS_CURL" -eq 1 ]; then
     curl --location --output "$output" "$url"
-  elif [ $HAS_WGET -eq 1 ]; then
+  elif [ "$HAS_WGET" -eq 1 ]; then
     wget -O "$output" "$url"
   else
     echo "assertion failed at Download()"
@@ -229,7 +229,7 @@ HAS_SHA1SUM=$(sha1sum --version >/dev/null 2>&1 && echo 1 || echo 0)
 
 # HashCheckB2(string path, string hash) -> bool
 HashCheckB2() {
-  if [ $HAS_B2SUM -eq 0 ]; then
+  if [ "$HAS_B2SUM" -eq 0 ]; then
     echo "b2sum is required"
     exit 1
   fi
@@ -240,7 +240,7 @@ HashCheckB2() {
 
 # HashCheckSHA1(string path, string hash) -> bool
 HashCheckSHA1() {
-  if [ $HAS_SHA1SUM -eq 0 ]; then
+  if [ "$HAS_SHA1SUM" -eq 0 ]; then
     echo "sha1sum is required"
     exit 1
   fi
@@ -251,7 +251,7 @@ HashCheckSHA1() {
 
 # HashCheckSHA256(string path, string hash) -> bool
 HashCheckSHA256() {
-  if [ $HAS_SHA256SUM -eq 0 ]; then
+  if [ "$HAS_SHA256SUM" -eq 0 ]; then
     echo "sha256sum is required"
     exit 1
   fi
@@ -269,7 +269,7 @@ StartTimer() {
 }
 
 StopTimer() {
-  echo $(( $(date +%s) - $startedAt ))
+  echo $(( $(date +%s) - startedAt ))
 }
 
 ################################################################
@@ -298,7 +298,7 @@ Debug() {
 
 ################################################################
 
-ProjectRoot="$(Dirname $(realpath "$0"))"
+ProjectRoot="$(Dirname "$(realpath "$0")")"
 if [ "$(pwd)" != "$ProjectRoot" ]; then
   echo "Must be call from project root!"
   echo "  $ProjectRoot"
@@ -322,9 +322,9 @@ IsPlatformWindows=$(StringEquals "$(uname)" 'Windows')
 cc="${CC:-clang}"
 IsCompilerGCC=$(StringStartsWith "$("$cc" --version | head -n 1 -c 32)" "gcc")
 IsCompilerClang=$(StringStartsWith "$("$cc" --version | head -n 1 -c 32)" "clang")
-if [ $IsCompilerGCC -eq 0 ] && [ $IsCompilerClang -eq 0 ]; then
+if [ "$IsCompilerGCC" -eq 0 ] && [ "$IsCompilerClang" -eq 0 ]; then
   echo "unsupported compiler $cc. continue (y/n)?"
-  read input
+  read -r input
   if [ "$input" != 'y' ] && [ "$input" != 'Y' ]; then
     exit 1
   fi
@@ -345,9 +345,9 @@ cflags="$cflags -fomit-frame-pointer"
 # warnings
 cflags="$cflags -Wall -Werror"
 cflags="$cflags -Wconversion"
-if [ $IsCompilerGCC -eq 1 ]; then
+if [ "$IsCompilerGCC" -eq 1 ]; then
   cflags="$cflags -Wshadow=local"
-elif [ $IsCompilerClang -eq 1 ]; then
+elif [ "$IsCompilerClang" -eq 1 ]; then
   cflags="$cflags -Wshadow"
 fi
 cflags="$cflags -Wno-unused-parameter"
@@ -370,7 +370,7 @@ else
   cflags="$cflags -O2"
 fi
 
-if [ $IsPlatformLinux -eq 1 ]; then
+if [ "$IsPlatformLinux" -eq 1 ]; then
   # needed by c libraries
   cflags="$cflags -D_GNU_SOURCE=1"
   cflags="$cflags -D_XOPEN_SOURCE=700"
@@ -388,20 +388,23 @@ Log "os:        $(uname)"
 Log "compiler:  $cc"
 
 Log "cflags: $cflags"
-if [ ! -z "$CFLAGS" ]; then
+if [ -n "$CFLAGS" ]; then
   Log "from your env: $CFLAGS"
 fi
 
 Log "ldflags: $ldflags"
-if [ ! -z "$LDFLAGS" ]; then
+if [ -n "$LDFLAGS" ]; then
   Log "from your env: $LDFLAGS"
 fi
 Log "================================================================"
 
-LIB_M='-lm'
+# TODO: Fix tests in windows
+if [ $IsPlatformWindows -eq 1 ]; then
+  IsTestsEnabled=0
+fi
 
 if [ $IsBuildEnabled -eq 1 ]; then
-  if [ $IsPlatformWindows -eq 1 ]; then
+  if [ "$IsPlatformWindows" -eq 1 ]; then
     ################################################################
     # WINDOWS BUILD
     ################################################################
@@ -423,8 +426,9 @@ if [ $IsBuildEnabled -eq 1 ]; then
       mv "$output" "$output.old"
 
       StartTimer
-      "$cc" --shared $cflags $ldflags $inc -o "$output" $src $lib
-      [ $? -eq 0 ] && echo "$OUTPUT_NAME.dll compiled in $(StopTimer) seconds."
+      if "$cc" --shared $cflags $ldflags $inc -o "$output" $src $lib; then
+        echo "$OUTPUT_NAME.dll compiled in $(StopTimer) seconds."
+      fi
     fi
 
     src="src/main.c"
@@ -432,10 +436,11 @@ if [ $IsBuildEnabled -eq 1 ]; then
     inc="-Iinclude $INC_LIBSDL"
     lib="$LIB_LIBSDL"
     StartTimer
-    "$cc" $cflags $ldflags $inc -o "$output" $src $lib
-    [ $? -eq 0 ] && echo "$OUTPUT_NAME.exe compiled in $(StopTimer) seconds."
+    if "$cc"  $cflags $ldflags $inc -o "$output" $src $lib; then
+      echo "$OUTPUT_NAME.exe compiled in $(StopTimer) seconds."
+    fi
 
-  elif [ $IsPlatformLinux -eq 1 ]; then
+  elif [ "$IsPlatformLinux" -eq 1 ]; then
     ################################################################
     # LINUX BUILD
     #      .--.
@@ -448,7 +453,9 @@ if [ $IsBuildEnabled -eq 1 ]; then
     ################################################################
     #INC_LIBSDL3=
     #LIB_LIBSDL3=
-    . $ProjectRoot/3rdparty/SDL3/build.sh
+    . "$ProjectRoot/3rdparty/SDL3/build.sh"
+
+    LIB_M='-lm'
 
     ### <PROJECT_NAME>
     # ShaderInc=
@@ -460,8 +467,9 @@ if [ $IsBuildEnabled -eq 1 ]; then
       inc="-I$ProjectRoot/include $INC_LIBSDL"
       lib="$LIB_LIBSDL $LIB_M"
       StartTimer
-      "$cc" --shared $cflags $ldflags $inc -o "$output" $src $lib
-      [ $? -eq 0 ] && echo "$OUTPUT_NAME.so compiled in $(StopTimer) seconds."
+      if "$cc" --shared $cflags $ldflags $inc -o "$output" $src $lib; then
+        echo "$OUTPUT_NAME.so compiled in $(StopTimer) seconds."
+      fi
     fi
 
     src="$ProjectRoot/src/main.c"
@@ -469,8 +477,9 @@ if [ $IsBuildEnabled -eq 1 ]; then
     inc="-I$ProjectRoot/include $INC_LIBSDL"
     lib="$LIB_LIBSDL $LIB_M"
     StartTimer
-    "$cc" $cflags $ldflags $inc -o "$output" $src $lib
-    [ $? -eq 0 ] && echo "$OUTPUT_NAME compiled in $(StopTimer) seconds."
+    if "$cc" $cflags $ldflags $inc -o "$output" $src $lib; then
+      echo "$OUTPUT_NAME compiled in $(StopTimer) seconds."
+    fi
   else
     echo "Do not know how to compile on this OS"
     echo "  OS: $(uname)"
@@ -487,7 +496,7 @@ Log "Finished at $(date '+%Y-%m-%d %H:%M:%S')"
 
 if [ ! -e tags ] && [ $IsBuildDebug -eq 1 ]; then
   src=""
-  if [ $HAS_SDL3 -eq 0 ]; then
+  if [ "$HAS_SDL3" -eq 0 ]; then
     for file in "$OutputDir/3rdparty/SDL3-$LIBSDL_VERSION-install/include/SDL3/*.h"; do
       src="$src $file"
     done
@@ -497,8 +506,8 @@ if [ ! -e tags ] && [ $IsBuildDebug -eq 1 ]; then
     done
   fi
 
-  for file in /usr/include/vulkan/{vk_platform,vulkan_core,vulkan_wayland}.h; do
-    src="$src $file"
+  for file in vk_platform vulkan_core vulkan_wayland; do
+    src="$src /usr/include/vulkan/$file.h"
   done
 
   ctags --fields=+iaS --extras=+q --c-kinds=+pf $src

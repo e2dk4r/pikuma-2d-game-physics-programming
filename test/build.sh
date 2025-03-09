@@ -26,6 +26,8 @@ if [ ! -e "$outputDir" ]; then
   mkdir "$outputDir"
 fi
 
+LIB_M='-lm'
+
 ### memory_test
 inc="-I$ProjectRoot/include"
 src="$pwd/memory_test.c"

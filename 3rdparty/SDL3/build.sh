@@ -1,15 +1,15 @@
 # vi: set et ft=sh ts=2 sw=2 fenc=utf-8 :vi
 HAS_SDL3=0
 
-if [ $IsPlatformWindows -eq 0 ]; then
+if [ "$IsPlatformWindows" -eq 0 ]; then
   if [ $(IsCommandExists sdl3-config) -eq 1 ]; then
     HAS_SDL3=1
-  elif [ $(IsCommandExists pkg-config) -eq 1 ] && $(pkg-config --exists sdl3); then
+  elif [ $(IsCommandExists pkg-config) -eq 1 ] && pkg-config --exists sdl3; then
     HAS_SDL3=1
   fi
 fi
 
-if [ $FORCE_BUILD_SDL3 -eq 1 ]; then
+if [ "$FORCE_BUILD_SDL3" -eq 1 ]; then
   HAS_SDL3=0
 fi
 
@@ -17,12 +17,12 @@ if [ $HAS_SDL3 -eq 1 ]; then
   # If system already has sdl3 library installed
   if [ $(IsCommandExists sdl3-config) -eq 1 ]; then
     LIBSDL_VERSION=$(sdl3-config --version)
-    export INC_LIBSDL="$(sdl3-config --cflags)"
-    export LIB_LIBSDL="$(sdl3-config --libs)"
+    INC_LIBSDL="$(sdl3-config --cflags)"
+    LIB_LIBSDL="$(sdl3-config --libs)"
   elif [ $(IsCommandExists pkg-config) -eq 1 ]; then
     LIBSDL_VERSION=$(pkg-config --modversion sdl3)
-    export INC_LIBSDL="$(pkg-config --cflags sdl3)"
-    export LIB_LIBSDL="$(pkg-config --libs sdl3)"
+    INC_LIBSDL="$(pkg-config --cflags sdl3)"
+    LIB_LIBSDL="$(pkg-config --libs sdl3)"
   else
     echo Error: Detected to have sdl3 installed but could not figure out where.
     exit 1
@@ -62,15 +62,15 @@ else
   Log "- b2sum:   $LIBSDL_HASH_B2"
 
   LIBSDL_HASH_OK=$(HashCheckB2 "$LIBSDL_FILE" "$LIBSDL_HASH_B2")
-  if [ $LIBSDL_HASH_OK -eq 0 ]; then
+  if [ "$LIBSDL_HASH_OK" -eq 0 ]; then
     StartTimer
-    echo Downloading SDL $LIBSDL_VERSION archive
+    echo Downloading SDL "$LIBSDL_VERSION" archive
     Download "$LIBSDL_URL" "$LIBSDL_FILE"
     elapsed=$(StopTimer)
     Log "  downloaded in $elapsed seconds"
 
     LIBSDL_HASH_OK=$(HashCheckB2 "$LIBSDL_FILE" "$LIBSDL_HASH_B2")
-    if [ $LIBSDL_HASH_OK -eq 0 ]; then
+    if [ "$LIBSDL_HASH_OK" -eq 0 ]; then
       echo "3rdparty/SDL hash check failed"
       Log "  hash check failed"
       exit 1
@@ -110,7 +110,7 @@ else
       -D SDL_STATIC=OFF
 
     target=install
-    if [ $IsBuildDebug -eq 0 ]; then
+    if [ "$IsBuildDebug" -eq 0 ]; then
       target=install/strip
     fi
     ninja -C "$LIBSDL_DIR/build" $target -j8
@@ -118,7 +118,7 @@ else
     Log "- built in $elapsed seconds"
   fi
 
-  export INC_LIBSDL="-I$LIBSDL_DIR-install/include"
-  export LIB_LIBSDL="-L$LIBSDL_DIR-install/lib64 -lSDL3"
+  INC_LIBSDL="-I$LIBSDL_DIR-install/include"
+  LIB_LIBSDL="-L$LIBSDL_DIR-install/lib64 -lSDL3"
   export PKG_CONFIG_LIBDIR="$PKG_CONFIG_LIBDIR:$LIBSDL_DIR-install/pkgconfig"
 fi
