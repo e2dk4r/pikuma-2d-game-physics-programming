@@ -3,11 +3,14 @@ Loosely following [2D Game Physics Programming](https://pikuma.com/courses/game-
 # Build for Linux
 
 ```sh
-./build.sh
-cd build
-export LD_LIBRARY_PATH="$PWD/3rdparty/SDL3-3.1.6-install/lib64"
-./game
+$ ./build.sh
+$ cd build
+$ # If you do not have sdl3 installed on system, make sure linux can find built
+$ # from source.
+$ if ! pkg-config sdl3; then export LD_LIBRARY_PATH="$PWD/3rdparty/SDL3-3.2.8-install/lib64"; fi
+$ ./game
 ```
+
 ## Gotchas
 
 1. Setting `LD_LIBRARY_PATH=./` causes app to segfault while recompiling.
@@ -31,15 +34,18 @@ $ ./build.sh # recompile
 
 Core applications come from [cosmopolitan libc](https://justine.lol/cosmopolitan/index.html).
 
-You can download from [https://cosmo.zip/pub/cosmos/bin].
+You can download individual files from https://cosmo.zip/pub/cosmos/bin
+or extract zip from https://cosmo.zip/pub/cosmos/zip/cosmos.zip
 
 For building our game we need:
 - bash
-- date
-- mkdir
-- echo
-- mv
 - cp
+- cut
+- date
+- echo
+- head
+- mkdir
+- mv
 
 Compiler we support is clang. You can download prebuilt from [llvm/llvm-project](https://github.com/llvm/llvm-project/releases/latest).
 
@@ -52,7 +58,8 @@ winget install Microsoft.VisualStudio.2022.BuildTools --force --override "--wait
 Within [Microsoft's docs](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-build-tools) you can find the IDs of the features available for the Visual Studio Build Tools and in [this section](https://learn.microsoft.com/en-us/visualstudio/install/use-command-line-parameters-to-install-visual-studio) also learn more about other parameters available for the installer.
 
 ```sh
-$ CC=clang.exe ./build.sh
+$ export CC=clang.exe
+$ ./build.sh
 $ cd build
 $ ./game
 ```

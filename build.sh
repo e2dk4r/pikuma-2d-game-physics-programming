@@ -32,6 +32,10 @@ usage() {
     --disable-$PROJECT_NAME
       Do not build $PROJECT_NAME binary.
 
+    --force-build-sdl3
+      Even if you have sdl3 library installed on your system, build it from
+      source.
+
     test
       Run tests.
 
@@ -47,6 +51,7 @@ usage() {
 EOF
 }
 
+FORCE_BUILD_SDL3=0
 for i in "$@"; do
   case $i in
     -d|--debug)
@@ -60,6 +65,9 @@ for i in "$@"; do
       ;;
     --disable-$PROJECT_NAME)
       IsBuildEnabled=0
+      ;;
+    --force-build-sdl3)
+      FORCE_BUILD_SDL3=1
       ;;
     test|tests)
       IsBuildEnabled=0
@@ -76,6 +84,20 @@ for i in "$@"; do
       ;;
   esac
 done
+
+################################################################
+# UTILITY FUNCTIONS
+################################################################
+
+# [0,1] IsCommandExists(cmd)
+IsCommandExists() {
+  cmd="$1"
+  if command -v "$cmd" >/dev/null 2>&1; then
+    echo 1
+  else
+    echo 0
+  fi
+}
 
 ################################################################
 # TEXT FUNCTIONS
@@ -169,8 +191,15 @@ Dirname() {
 ################################################################
 # Network FUNCTIONS
 ################################################################
-HAS_CURL=$(curl --version >/dev/null 2>&1 && echo 1 || echo 0)
-HAS_WGET=$(wget --version >/dev/null 2>&1 && echo 1 || echo 0)
+HAS_CURL=$(IsCommandExists curl)
+if [ $HAS_CURL -eq 1 ]; then
+  CURL_VERSION=$(curl --version | head -n 1 | cut -d ' ' -f2)
+fi
+
+HAS_WGET=$(IsCommandExists wget)
+if [ $HAS_WGET -eq 1 ]; then
+  WGET_VERSION=$(wget --version | head -n 1 | cut -d ' ' -f3)
+fi
 
 # Download(string url, string output)
 Download() {
@@ -458,13 +487,19 @@ Log "Finished at $(date '+%Y-%m-%d %H:%M:%S')"
 
 if [ ! -e tags ] && [ $IsBuildDebug -eq 1 ]; then
   src=""
-  for file in "$OutputDir/3rdparty/SDL3-$LIBSDL_VERSION-install/include/SDL3/*.h"; do
+  if [ $HAS_SDL3 -eq 0 ]; then
+    for file in "$OutputDir/3rdparty/SDL3-$LIBSDL_VERSION-install/include/SDL3/*.h"; do
+      src="$src $file"
+    done
+  else
+    for file in /usr/include/SDL3/*.h; do
+      src="$src $file"
+    done
+  fi
+
+  for file in /usr/include/vulkan/{vk_platform,vulkan_core,vulkan_wayland}.h; do
     src="$src $file"
   done
-
-  src="$src /usr/include/vulkan/vk_platform.h"
-  src="$src /usr/include/vulkan/vulkan_core.h"
-  src="$src /usr/include/vulkan/vulkan_wayland.h"
 
   ctags --fields=+iaS --extras=+q --c-kinds=+pf $src
   echo tags are generated
