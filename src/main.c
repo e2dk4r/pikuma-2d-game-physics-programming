@@ -273,7 +273,7 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     StringBuilderAppendU64(sb, keyboardEvent.repeat);
     StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
     string s = StringBuilderFlush(sb);
-    log(&s);
+    LogMessage(&s);
 #endif
 
 #if IS_BUILD_DEBUG
@@ -343,7 +343,7 @@ SDL_AppEvent(void *appstate, SDL_Event *event)
     StringBuilderAppendF32(sb, mouseEvent.y, 2);
     StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
     string s = StringBuilderFlush(sb);
-    log(&s);
+    LogMessage(&s);
 #endif
   } break;
 
