@@ -334,32 +334,9 @@ FindFurthestPoint(struct entity *entity, v2 direction)
 
   case VOLUME_TYPE_BOX: {
     volume_box *box = VolumeGetBox(volume);
-    f32 halfWidth = box->width * 0.5f;
-    f32 halfHeight = box->height * 0.5f;
-    v2 verticies[] = {
-        // left bottom
-        {-halfWidth, -halfHeight},
-        // right bottom
-        {halfWidth, -halfHeight},
-        // right top
-        {halfWidth, halfHeight},
-        // left top
-        {-halfWidth, halfHeight},
-    };
-    u32 vertexCount = ARRAY_COUNT(verticies);
-
-    v2 maxPoint = verticies[0];
-    f32 maxDistance = v2_dot(maxPoint, direction);
-    for (u32 vertexIndex = 1; vertexIndex < vertexCount; vertexIndex++) {
-      v2 point = verticies[vertexIndex];
-      f32 distance = v2_dot(point, direction);
-      if (distance > maxDistance) {
-        maxPoint = point;
-        maxDistance = distance;
-      }
-    }
-
-    return v2_add(entity->position, maxPoint);
+    v2 topRight = V2(box->width * 0.5f, box->height * 0.5f);
+    v2 pointInDirection = v2_hadamard(topRight, V2(SignOf(direction.x), SignOf(direction.y)));
+    return v2_add(entity->position, pointInDirection);
   } break;
 
   case VOLUME_TYPE_POLYGON: {
