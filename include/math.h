@@ -212,6 +212,19 @@ v2_add(v2 a, v2 b)
   return a;
 }
 
+static inline v2
+v2_add_multiple(u32 vertexCount, v2 *verticies)
+{
+  v2 sum;
+
+  sum = V2(0.0f, 0.0f);
+  for (u32 vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
+    v2_add_ref(&sum, verticies[vertexIndex]);
+  }
+
+  return sum;
+}
+
 static inline void
 v2_sub_ref(v2 *a, v2 b)
 {
@@ -331,6 +344,12 @@ typedef struct v3 {
   };
 } v3;
 
+static inline v3
+V3(f32 x, f32 y, f32 z)
+{
+  return (v3){x, y, z};
+}
+
 static inline void
 v3_add_ref(v3 *a, v3 b)
 {
@@ -344,6 +363,19 @@ v3_add(v3 a, v3 b)
 {
   v3_add_ref(&a, b);
   return a;
+}
+
+static inline v3
+v3_add_multiple(u32 vertexCount, v3 *verticies)
+{
+  v3 sum;
+
+  sum = V3(0.0f, 0.0f, 0.0f);
+  for (u32 vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
+    v3_add_ref(&sum, verticies[vertexIndex]);
+  }
+
+  return sum;
 }
 
 static inline void
