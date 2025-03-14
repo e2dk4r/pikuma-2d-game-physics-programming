@@ -334,8 +334,8 @@ FindFurthestPoint(struct entity *entity, v2 direction)
 
   case VOLUME_TYPE_BOX: {
     volume_box *box = VolumeGetBox(volume);
-    v2 topRight = V2(box->width * 0.5f, box->height * 0.5f);
-    v2 pointInDirection = v2_hadamard(topRight, V2(SignOf(direction.x), SignOf(direction.y)));
+    v2 halfSize = V2(box->width * 0.5f, box->height * 0.5f);
+    v2 pointInDirection = v2_hadamard(halfSize, V2(SignOf(direction.x), SignOf(direction.y)));
     return v2_add(entity->position, pointInDirection);
   } break;
 
