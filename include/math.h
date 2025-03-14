@@ -167,7 +167,7 @@ SquareRoot(f32 value)
 static inline f32
 SignOf(f32 value)
 {
-  return value > 0.0f ? 1.0f : -1.0f;
+  return value == 0.0f ? 0.0f : value > 0.0f ? 1.0f : -1.0f;
 }
 
 static inline f32
