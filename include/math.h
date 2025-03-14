@@ -61,12 +61,12 @@ IsPowerOfTwo(u64 value)
 #define Maximum(x, y) (x > y ? x : y)
 #define Minimum(x, y) (x < y ? x : y)
 
-static inline f64
-Absolute(f64 value)
+static inline f32
+Absolute(f32 value)
 {
   if (value < 0)
-    return (f64)(-value);
-  return (f64)value;
+    return -value;
+  return value;
 }
 
 static inline f32
