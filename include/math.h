@@ -3,6 +3,8 @@
 #include "assert.h"
 #include "type.h"
 
+comptime f32 PI = 3.14159265358979323846264338327950288f;
+
 // used for calculating digit count of value
 //   digitCount = 1
 //   while (digitCount < ARRAY_COUNT(array) && value >= array[digitCount])

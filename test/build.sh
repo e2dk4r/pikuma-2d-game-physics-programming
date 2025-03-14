@@ -89,6 +89,14 @@ output="$outputDir/$(BasenameWithoutExtension "$src")"
 "$cc" $cflags $ldflags $inc -o "$output" $src
 RunTest "$output" "TEST doubly linked list failed."
 
+### physics_test
+inc="-I$ProjectRoot/include -I$ProjectRoot/src"
+src="$pwd/physics_test.c"
+output="$outputDir/$(BasenameWithoutExtension "$src")"
+lib="$LIB_M"
+"$cc" $cflags $ldflags $inc -o "$output" $src $lib
+RunTest "$output" "TEST physics failed."
+
 if [ $failedTestCount -ne 0 ]; then
   echo $failedTestCount tests failed.
   exit 1
