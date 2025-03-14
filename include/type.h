@@ -32,9 +32,11 @@ typedef double f64;
 #define F32_MIN __FLT_MIN__
 #define F32_MAX __FLT_MAX__
 #define F32_LOWEST (-F32_MAX)
+#define F32_EPSILON (1.192092896e-07F)
 #define F64_MIN __DBL_MIN__
 #define F64_MAX __DBL_MAX__
 #define F64_LOWEST (-F64_MAX)
+#define F64_EPSILON (1.1920928955078125e-07F) /* 0x0.000002p0 */
 
 #define global static
 #define comptime const static
