@@ -500,6 +500,12 @@ v3_cross(v3 a, v3 b)
   return a;
 }
 
+static inline f32
+v3_absolute_norm(v3 a)
+{
+  return Absolute(a.x) + Absolute(a.y) + Absolute(a.z);
+}
+
 typedef struct v4 {
   union {
     struct {

@@ -1,4 +1,5 @@
 #include "physics.h"
+#include "compiler.h"
 #include "math.h"
 
 static u8 *
@@ -408,6 +409,7 @@ CollisionDetect(struct entity *entityA, struct entity *entityB, contact *contact
   } break;
 
   case VOLUME_TYPE_BOX | VOLUME_TYPE_BOX: {
+#if 0
     /* see:
      * - https://www.youtube.com/watch?v=MDusDn8oTSE "GJK Algorithm Explanation & Implementation"
      *   https://winter.dev/articles/gjk-algorithm
@@ -558,6 +560,9 @@ CollisionDetect(struct entity *entityA, struct entity *entityB, contact *contact
       vertexCount++;
     }
 
+    // BUG: TODO: Entity partially stucks at corner after colliding.
+    //            Is Minkowski Difference correct?
+
     // TODO: Is contact information correct?
     // see:
     //   - "Dirk Gregorius - Robust Contact Creation for Physics Simulation"
@@ -567,6 +572,308 @@ CollisionDetect(struct entity *entityA, struct entity *entityB, contact *contact
     contact->depth = closestEdge.distance;
     contact->start = FindFurthestPoint(entityB, v2_neg(contact->normal));
     contact->end = FindFurthestPoint(entityA, contact->normal);
+#else
+    /* From paper:
+     *   2024 - Wei Gao - Efficient Incremental Penetration Depth Estimation between Convex Geometries
+     * Reference implementation:
+     *   https://github.com/weigao95/mind-fcl/blob/86edd6c89db0682cc9f99ae852117c8992ad966a/include/fcl/cvx_collide/mpr.hpp#L501
+     *   See below for how it used in test
+     *   https://github.com/weigao95/mind-fcl/blob/86edd6c89db0682cc9f99ae852117c8992ad966a/test/cvx_collide/test_mpr_penetration.cpp#L65
+     */
+    u32 maxIterations = 1000;
+    f32 tolerance = 1e-6f;
+
+    v3 d = {.xy = v2_normalize(entityB->velocity)};
+    if (v3_length_square(d) == 0.0f) {
+      d = (v3){.xy = v2_normalize(v2_sub(entityB->position, entityA->position))};
+    }
+    debug_assert(v3_length_square(d) != 0);
+
+    // v0_to_O is the direction. This v0 is actually mock.
+    // It may NOT lie in the MinkowskiDiff shape
+    v3 v0 = v3_neg(d);
+
+    v3 v1_direction = v3_normalize(d);
+    v3 v1 = {.xy = Support(entityA, entityB, v1_direction.xy)};
+
+    // no intersect case 1
+    if (v3_dot(v1_direction, v1) < 0) {
+      return 0;
+    }
+
+    v3 v2_direction = v3_cross(v0, v1);
+    // LEFTOFF: v2_direction is 0? Is it implementation issue?
+    debug_assert(v3_length_square(v2_direction) != 0);
+    // o_to_v0 and o_to_v1 can be co-linear, check it
+    // Note that v0 MUST have norm one
+    // This equation might be written as
+    //   cross(o_to_v0.normalized(), o_to_v1.normalized()).norm() <= tolerance
+    // which can be further expanded as
+    //   cross(o_to_v0, o_to_v1).norm() <= tolerance * v0.norm() * v1.norm()
+    // However, we do not want to compute the L2 norm, thus replace it with
+    // abs norm, which is much easier to compute.
+    if (v3_absolute_norm(v2_direction) <= v3_absolute_norm(v1) * tolerance) {
+      // o_to_v0 and o_to_v1 can be co-linear, from the condition above
+      // v1_direction.dot(v1) = - v0_interior.dot(v1) < 0 is False
+      // which implies
+      // - v0_interior.dot(v1) > 0  --> v0_interior.dot(v1) < 0
+      // As v0 = o_to_v0, v1 = o_to_v1, we have
+      // o_to_v0.dot(o_to_v1) < 0, o is in the middle of v0/v1
+      // As v0 is an interior point, v1 is a boundary point
+      // We conclude O must be within the shape
+      contact->depth = v3_dot(v1, d);
+      contact->normal = v3_normalize(v1_direction).xy;
+      contact->start = FindFurthestPoint(entityB, v2_neg(contact->normal));
+      contact->end = FindFurthestPoint(entityA, contact->normal);
+      return 1;
+    }
+
+    v3 v2 = {.xy = Support(entityA, entityB, v3_normalize(v2_direction).xy)};
+
+    // no intersect
+    if (v3_dot(v2_direction, v2) < 0)
+      return 0;
+
+    // it is better to form portal faces to be oriented "outside" origin
+    // Here O must be an interior point in penetration query
+    v3 v3_direction = v3_cross(v1, v2);
+    if (v3_dot(v3_direction, v0) > 0) {
+      swap(v1, v2);
+      swap(v1_direction, v2_direction);
+      v3_neg_ref(&v3_direction);
+    }
+
+    v3 v3 = {.xy = Support(entityA, entityB, v3_normalize(v3_direction).xy)};
+
+    // no intersect
+    if (v3_dot(v3_direction, v3) < 0) {
+      return 0;
+    }
+
+    // Scale the v0 to the max of v1/v2/v3
+    struct v3 v0_scaled = v0;
+    {
+      f32 squaredNorms[3] = {v3_length_square(v1), v3_length_square(v2), v3_length_square(v3)};
+      f32 max = squaredNorms[0];
+      for (u32 index = 1; index < ARRAY_COUNT(squaredNorms); index++) {
+        f32 squaredNorm = squaredNorms[index];
+        if (squaredNorm > max)
+          max = squaredNorm;
+      }
+      v3_scale_ref(&v0_scaled, SquareRoot(max));
+    }
+
+    // The loop to find the portal
+    struct v3 o_to_v0 = v0;
+    f32 v0_absoluteNorm = v3_absolute_norm(v0);
+    for (u32 findCandidatePortalIteration = 0;; findCandidatePortalIteration++) {
+      if (findCandidatePortalIteration == maxIterations) {
+        // Iteration limit
+        return 0;
+      }
+
+      struct v3 v0_to_v1 = v3_sub(v1, v0);
+      struct v3 v0_to_v2 = v3_sub(v2, v0);
+      struct v3 v0_to_v3 = v3_sub(v3, v0);
+
+      // Update the corresponded vertex
+      // These normal are not oriented
+      struct v3 v031_normal = v3_cross(v0_to_v3, v0_to_v1);
+      struct v3 v012_normal = v3_cross(v0_to_v1, v0_to_v2);
+      // Orient it
+      if (v3_dot(v0_to_v2, v031_normal) < 0) {
+        swap(v2, v3);
+        swap(v2_direction, v3_direction);
+        swap(v0_to_v2, v0_to_v3);
+
+        // Something tricky here, note the changing of vectors
+        swap(v012_normal, v031_normal);
+        v3_neg_ref(&v031_normal);
+        v3_neg_ref(&v012_normal);
+      }
+
+      debug_assert(v3_dot(v0_to_v2, v031_normal) >= 0);
+      b8 is_v031_seperated_v2_and_o =
+          v3_dot(o_to_v0, v031_normal) > F32_EPSILON * v0_absoluteNorm * v3_absolute_norm(v031_normal);
+      if (is_v031_seperated_v2_and_o) {
+        // Orient the normal towards O
+        debug_assert(v3_dot(o_to_v0, v012_normal) > 0);
+        struct v3 search_v3_direction = v012_normal;
+        v3_neg_ref(&search_v3_direction);
+
+        // Find a new v3 in that direction
+        v3 = (struct v3){.xy = Support(entityA, entityB, search_v3_direction.xy)};
+        v3_direction = search_v3_direction;
+
+        // Miss detection
+        if (v3_dot(v3, search_v3_direction) < 0) {
+          // detect seperated
+          return 0;
+        }
+
+        // Loop again
+        continue;
+      }
+
+      // case 023
+      struct v3 v023_normal = v3_cross(v0_to_v2, v0_to_v3);
+      debug_assert(v3_dot(v0_to_v3, v012_normal) >= 0);
+      b8 is_v023_seperated_v1_and_o =
+          v3_dot(o_to_v0, v023_normal) > F32_EPSILON * v0_absoluteNorm * v3_absolute_norm(v023_normal);
+      if (is_v023_seperated_v1_and_o) {
+        // Orient the normal towards O
+        debug_assert(v3_dot(o_to_v0, v023_normal) > 0);
+        struct v3 search_v1_direction = v023_normal;
+        v3_neg_ref(&search_v1_direction);
+
+        // Find a new v2 in that direction
+        v1 = (struct v3){.xy = Support(entityA, entityB, search_v1_direction.xy)};
+        v1_direction = search_v1_direction;
+
+        // Miss detection
+        if (v3_dot(v1, search_v1_direction) < 0) {
+          // detect seperated
+          return 0;
+        }
+
+        // Loop again
+        continue;
+      }
+
+      // No seperation, we are done.
+      break;
+    }
+
+    // You can safely assume that portal found from now on.
+
+    // Portal refinement
+    for (u32 portalRefinementIteration = 0;; portalRefinementIteration++) {
+      if (portalRefinementIteration == maxIterations) {
+        // iteration limit
+        return 0;
+      }
+
+      // Compute the normal
+      // The v123_normal must be oriented in the same side with O
+      struct v3 v123_normal = v3_cross(v3_sub(v2, v1), v3_sub(v3, v1));
+      if (v3_dot(v123_normal, d) < 0) {
+        swap(v2, v3);
+        swap(v2_direction, v3_direction);
+        v3_neg_ref(&v123_normal);
+      }
+
+      // A new point v4 on that direction
+      struct v3 v4 = {.xy = Support(entityA, entityB, v3_normalize(v123_normal).xy)};
+      if (v3_dot(v4, v123_normal) < 0) {
+        return 0;
+      }
+
+      // Seperation plane very close to the new (candidate) portal
+      // Note that v123_normal can be un-normalized, thus its length
+      // must be considered
+      struct v3 v1_to_v4 = v3_sub(v4, v1);
+      if (Absolute(v3_dot(v1_to_v4, v123_normal)) < tolerance * v3_absolute_norm(v123_normal)) {
+        contact->normal = v123_normal.xy;
+        f32 v123_normal_dot_d = v3_dot(v123_normal, d);
+
+        // Very unlikely case that can not divide the dot
+        if (unlikely(Absolute(v123_normal_dot_d) == 0)) {
+          f32 d_dot_v123[] = {
+              v3_dot(v1, d),
+              v3_dot(v2, d),
+              v3_dot(v3, d),
+          };
+          struct v3 d_for_v123[] = {
+              v1_direction,
+              v2_direction,
+              v3_direction,
+          };
+
+          u32 maxDistanceIndex = 0;
+          f32 maxDistance = d_dot_v123[maxDistanceIndex];
+          for (u32 index = 1; index < ARRAY_COUNT(d_dot_v123); index++) {
+            if (d_dot_v123[index] > maxDistance) {
+              maxDistance = d_dot_v123[index];
+              maxDistanceIndex = index;
+            }
+          }
+
+          contact->normal = d_for_v123[maxDistanceIndex].xy;
+          contact->depth = maxDistance;
+          contact->start = FindFurthestPoint(entityB, contact->normal);
+          contact->end = FindFurthestPoint(entityA, v2_neg(contact->normal));
+        } else {
+          contact->depth = v3_dot(v4, v123_normal) / v123_normal_dot_d;
+
+          f32 o_to_v1_dot_v123_normal = v3_dot(v1, v123_normal);
+          debug_assert(o_to_v1_dot_v123_normal >= 0);
+          f32 distance_to_v123 = o_to_v1_dot_v123_normal / v123_normal_dot_d;
+
+          struct v3 o_projected = v3_scale(d, distance_to_v123);
+          struct v3 v1_to_v2 = v3_sub(v2, v1);
+          struct v3 v1_to_v3 = v3_sub(v3, v1);
+          struct v3 s1s2s3_planeNormal = v3_cross(v1_to_v2, v1_to_v3);
+          f32 area = v3_length(s1s2s3_planeNormal);
+          f32 s2_weight = v3_length(v3_cross(v1_to_v3, v3_sub(v1, o_projected))) / area;
+          f32 s3_weight = v3_length(v3_cross(v1_to_v2, v3_sub(v1, o_projected))) / area;
+          f32 s1_weight = 1.0f - s2_weight - s3_weight;
+
+          struct v2 aPointsWeighted[] = {
+              v2_scale(FindFurthestPoint(entityA, v1_direction.xy), s1_weight),
+              v2_scale(FindFurthestPoint(entityA, v2_direction.xy), s2_weight),
+              v2_scale(FindFurthestPoint(entityA, v3_direction.xy), s3_weight),
+          };
+          contact->end = v2_add_multiple(ARRAY_COUNT(aPointsWeighted), aPointsWeighted);
+          struct v2 bPointsWeighted[] = {
+              v2_scale(FindFurthestPoint(entityB, v2_neg(v1_direction.xy)), s1_weight),
+              v2_scale(FindFurthestPoint(entityB, v2_neg(v2_direction.xy)), s2_weight),
+              v2_scale(FindFurthestPoint(entityB, v2_neg(v3_direction.xy)), s3_weight),
+          };
+          contact->start = v2_add_multiple(ARRAY_COUNT(bPointsWeighted), bPointsWeighted);
+        }
+
+        return 1;
+      }
+
+      // Update the portal
+
+      // v4 must appear in the next portal
+      // select two in v1, v2 and v3
+      // First do a seperation in with plane v0_v4_o
+      struct v3 o_to_v4 = v4;
+      // struct v3 o_to_v0 = v0;
+      struct v3 o_to_v1 = v1;
+      struct v3 o_to_v2 = v2;
+      struct v3 o_to_v3 = v3;
+
+      struct v3 v0_v4_o_normal = v3_cross(o_to_v4, o_to_v0);
+      if (v3_dot(o_to_v1, v0_v4_o_normal) > 0) {
+        if (v3_dot(o_to_v2, v0_v4_o_normal) > 0) {
+          // Discard v1
+          v1 = v4;
+          v1_direction = v123_normal;
+        } else {
+          // Discard v3
+          v3 = v4;
+          v3_direction = v123_normal;
+        }
+      } else {
+        if (v3_dot(o_to_v3, v0_v4_o_normal) > 0) {
+          // Discard v2
+          v2 = v4;
+          v2_direction = v123_normal;
+        } else {
+          // Discard v1
+          v1 = v4;
+          v1_direction = v123_normal;
+        }
+      }
+    }
+
+    //
+    return 0;
+
+#endif
   } break;
 
   default: {
