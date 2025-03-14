@@ -37,7 +37,7 @@ lib="$LIB_M"
 RunTest "$output" "TEST memory failed."
 
 ### text_test
-inc="-I$ProjectRoot/include"
+inc="-I$ProjectRoot/include -I$ProjectRoot/src"
 src="$pwd/text_test.c"
 output="$outputDir/$(BasenameWithoutExtension "$src")"
 lib="$LIB_M"

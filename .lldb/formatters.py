@@ -7,7 +7,9 @@ def string_summary(valobj, dict):
     length = valobj.GetChildMemberWithName("length").GetValueAsUnsigned(0)
 
     if value == 0:
-        return "NULL"
+        return "(null string)"
+    if value != 0 and length == 0:
+        return "(empty string)"
 
     process = valobj.GetProcess()
     error = lldb.SBError()

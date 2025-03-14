@@ -34,11 +34,30 @@ StringFromZeroTerminated(u8 *src, u64 max)
 }
 
 static inline b8
+IsStringNull(struct string *string)
+{
+  return string && string->value == 0;
+}
+
+static inline b8
+IsStringEmpty(struct string *string)
+{
+  return string && string->value != 0 && string->length == 0;
+}
+
+static inline b8
 IsStringEqual(struct string *left, struct string *right)
 {
-  if (!left || !right || left->length != right->length)
+  if (!left || !right || (IsStringNull(left) && IsStringEmpty(right)) || (IsStringEmpty(left) && IsStringNull(right)))
     return 0;
 
+  if ((IsStringNull(left) && IsStringNull(right)) || (IsStringEmpty(left) && IsStringEmpty(right)))
+    return 1;
+
+  if (left->length != right->length)
+    return 0;
+
+  // TODO: speed up this by using SSE or AVX
   for (u64 index = 0; index < left->length; index++) {
     if (left->value[index] != right->value[index])
       return 0;
@@ -460,24 +479,26 @@ PathGetDirectory(struct string *path)
   if (!path || !path->value || path->length == 0)
     return directory;
 
-  u64 lastSlashIndex = path->length;
-  for (u64 index = path->length - 1; index != 0; index--) {
+  u64 lastSlashIndex = path->length - 1;
+  while (1) {
 #if IS_PLATFORM_WINDOWS
-    if (path->value[index] == '\\') {
+    if (path->value[lastSlashIndex] == '\\')
 #else
-    if (path->value[index] == '/') {
+    if (path->value[lastSlashIndex] == '/')
 #endif
-      lastSlashIndex = index;
       break;
-    }
-  }
 
-  // if slash not found
-  if (lastSlashIndex == path->length || lastSlashIndex == path->length - 1)
-    return directory;
+    // if slash not found
+    if (lastSlashIndex == 0)
+      return directory;
+
+    lastSlashIndex--;
+  }
 
   directory.value = path->value;
   directory.length = lastSlashIndex;
+  if (directory.length == 0)
+    directory.length++;
   return directory;
 }
 
