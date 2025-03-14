@@ -1,8 +1,15 @@
+command script import -c formatters.py
+
+# include/text.h
+type summary add string --python-function formatters.string_summary
+
+# include/string_builder.h
+type summary add string_builder --python-function formatters.string_builder_summary
+
 # include/math.h
 type summary add v2 --summary-string "\{ x = ${var.x}, y = ${var.y} \}"
 type summary add v3 --summary-string "\{ x = ${var.x}, y = ${var.y}, z = ${var.z} \}"
 type summary add v4 --summary-string "\{ x = ${var.x}, y = ${var.y}, z = ${var.z}, w = ${var.w} \}"
 
 # src/physics.h
-command script import -c VolumeSynthProvider.py
-type synthetic add volume --python-class VolumeSynthProvider
+#type summary add volume --python-function formatters.volume_summary
