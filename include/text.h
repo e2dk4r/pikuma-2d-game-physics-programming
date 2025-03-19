@@ -16,6 +16,17 @@ typedef struct string {
   })
 
 static inline struct string
+StringFromBuffer(u8 *buffer, u64 length)
+{
+  debug_assert(buffer != 0);
+  struct string string = {
+      .value = buffer,
+      .length = length,
+  };
+  return string;
+}
+
+static inline struct string
 StringFromZeroTerminated(u8 *src, u64 max)
 {
   debug_assert(src != 0);
@@ -60,6 +71,35 @@ IsStringEqual(struct string *left, struct string *right)
   // TODO: speed up this by using SSE or AVX
   for (u64 index = 0; index < left->length; index++) {
     if (left->value[index] != right->value[index])
+      return 0;
+  }
+
+  return 1;
+}
+
+static u8
+ToLowerASCII(u8 character)
+{
+  if (character >= 'A' && character <= 'Z')
+    return character + 0x20;
+  return character;
+}
+
+static inline b8
+IsStringEqualIgnoreCase(struct string *left, struct string *right)
+{
+  if (!left || !right || (IsStringNull(left) && IsStringEmpty(right)) || (IsStringEmpty(left) && IsStringNull(right)))
+    return 0;
+
+  if ((IsStringNull(left) && IsStringNull(right)) || (IsStringEmpty(left) && IsStringEmpty(right)))
+    return 1;
+
+  if (left->length != right->length)
+    return 0;
+
+  // TODO: speed up this by using SSE or AVX
+  for (u64 index = 0; index < left->length; index++) {
+    if (ToLowerASCII(left->value[index]) != ToLowerASCII(right->value[index]))
       return 0;
   }
 
@@ -527,53 +567,75 @@ PathGetDirectory(struct string *path)
  * @return 1 when string can be split into parts, 0 otherwise.
  * @code
  *   u64 splitCount;
- *   if (!StringSplit(string, &splitCount, 0));
+ *   string *separator = ;
+ *   if (!StringSplit(string, separator, &splitCount, 0));
  *   if (splitCount == 1)
  *     return;
  *   string *splits = MemoryArenaPush(arena, sizeof(*splits) * splitCount);
- *   StringSplit(string, &splitCount, splits);
+ *   StringSplit(string, separator, &splitCount, splits);
  * @endcode
  */
 static inline b8
-StringSplit(struct string *string, u64 *splitCount, struct string *splits)
+StringSplit(struct string *string, struct string *separator, u64 *splitCount, struct string *splits)
 {
-  debug_assert(splitCount && "only split can be null");
-  u8 delimiter = ' ';
+  debug_assert(splitCount && "only splits can be null");
 
   if (!string || !splitCount)
     return 0;
 
-  if (splits == 0) {
+  b8 isCalculatingSplitCount = splits == 0;
+  if (isCalculatingSplitCount) {
     u64 count = 0;
-    for (u64 index = 0; index < string->length; index++) {
-      if (string->value[index] == delimiter)
-        count++;
-    }
+    for (u64 index = 0; index < string->length;) {
+      struct string substring = StringFromBuffer(string->value + index, separator->length);
 
+      if (separator->length > string->length - index)
+        break;
+
+      if (IsStringEqual(&substring, separator)) {
+        count++;
+        index += separator->length;
+      } else {
+        index++;
+      }
+    }
     *splitCount = count + 1;
   } else {
     u64 startIndex = 0;
     u64 splitIndex = 0;
     u64 splitMax = *splitCount;
 
-    for (u64 index = 0; index < string->length; index++) {
-      if (string->value[index] == delimiter) {
-        struct string *split = splits + splitIndex;
-        if (splitMax == splitIndex + 1 /* index to count */)
-          break;
-        split->value = string->value + startIndex;
-        split->length = index - startIndex;
-        startIndex = index + 1;
+    for (u64 index = 0; index < string->length;) {
+      struct string substring = StringFromBuffer(string->value + index, separator->length);
+      if (separator->length > string->length - index)
+        break;
+
+      if (IsStringEqual(&substring, separator)) {
+        struct string split = StringFromBuffer(string->value + startIndex, index - startIndex);
+        if (split.length == 0)
+          split.value = 0;
+        *(splits + splitIndex) = split;
         splitIndex++;
+        index += separator->length;
+        startIndex = index;
+      } else {
+        index++;
       }
     }
 
     // last one
-    struct string *split = splits + splitIndex;
-    split->value = string->value + startIndex;
-    split->length = string->length - startIndex;
-    debug_assert(splitIndex < splitMax);
+    struct string lastSplit = StringFromBuffer(string->value + startIndex, string->length - startIndex);
+    if (lastSplit.length == 0)
+      lastSplit.value = 0;
+    *(splits + splitIndex) = lastSplit;
+    debug_assert(splitIndex + 1 == splitMax);
   }
 
   return 1;
+}
+
+static inline b8
+StringSplitBySpace(struct string *string, u64 *splitCount, struct string *splits)
+{
+  return StringSplit(string, &STRING_FROM_ZERO_TERMINATED(" "), splitCount, splits);
 }

@@ -2,41 +2,43 @@
 #include "string_builder.h"
 #include "text.h"
 
-#define TEST_ERROR_LIST(XX)                                                                                            \
-  XX(TEXT_TEST_ERROR_STRING_FROM_ZERO_TERMINATED, "Failed to create string from zero terminated c-string")             \
-  XX(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_TRUE, "Strings must be equal")                                            \
-  XX(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_FALSE, "Strings must NOT be equal")                                       \
-  XX(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_TRUE, "String must contain search string")                            \
-  XX(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_FALSE, "String must NOT contain search string")                       \
-  XX(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_TRUE, "String must start with search string")                      \
-  XX(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_FALSE, "String must NOT start with search string")                 \
-  XX(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_TRUE, "String must end with search string")                          \
-  XX(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_FALSE, "String must NOT end with search string")                     \
-  XX(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_TRUE, "Parsing duration string must be successful")                       \
-  XX(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_FALSE, "Parsing duration string must fail")                               \
-  XX(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_TRUE, "lhs duration must be less then rhs")                        \
-  XX(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_FALSE, "lhs duration must NOT be less then rhs")                   \
-  XX(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_TRUE, "lhs duration must be grater then rhs")                    \
-  XX(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_FALSE, "lhs duration must NOT be grater then rhs")               \
-  XX(TEXT_TEST_ERROR_FORMATU64_EXPECTED, "Formatting u64 value must be successful")                                    \
-  XX(TEXT_TEST_ERROR_FORMATF32SLOW_EXPECTED, "Formatting f32 value must be successful")                                \
-  XX(TEXT_TEST_ERROR_FORMATHEX_EXPECTED, "Formatting value to hex must be successful")                                 \
-  XX(TEXT_TEST_ERROR_PATHGETDIRECTORY, "Extracting path's parent directory must be successful")                        \
-  XX(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_TRUE, "Splitting string into parts must be successful")                      \
-  XX(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_FALSE, "Splitting string into parts must be fail")
+#define TEST_ERROR_LIST                                                                                                \
+  TEST_ERROR(TEXT_TEST_ERROR_STRING_FROM_ZERO_TERMINATED, "Failed to create string from zero terminated c-string")     \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_TRUE, "Strings must be equal")                                    \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_FALSE, "Strings must NOT be equal")                               \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_EQUAL_IGNORE_CASE_MUST_BE_TRUE, "Strings that are case ignored must be equal")  \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_EQUAL_IGNORE_CASE_MUST_BE_FALSE,                                                \
+             "Strings that are case ignored must NOT be equal")                                                        \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_TRUE, "String must contain search string")                    \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_FALSE, "String must NOT contain search string")               \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_TRUE, "String must start with search string")              \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_FALSE, "String must NOT start with search string")         \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_TRUE, "String must end with search string")                  \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_FALSE, "String must NOT end with search string")             \
+  TEST_ERROR(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_TRUE, "Parsing duration string must be successful")               \
+  TEST_ERROR(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_FALSE, "Parsing duration string must fail")                       \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_TRUE, "lhs duration must be less then rhs")                \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_FALSE, "lhs duration must NOT be less then rhs")           \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_TRUE, "lhs duration must be grater then rhs")            \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_FALSE, "lhs duration must NOT be grater then rhs")       \
+  TEST_ERROR(TEXT_TEST_ERROR_FORMATU64_EXPECTED, "Formatting u64 value must be successful")                            \
+  TEST_ERROR(TEXT_TEST_ERROR_FORMATF32SLOW_EXPECTED, "Formatting f32 value must be successful")                        \
+  TEST_ERROR(TEXT_TEST_ERROR_FORMATHEX_EXPECTED, "Formatting value to hex must be successful")                         \
+  TEST_ERROR(TEXT_TEST_ERROR_PATHGETDIRECTORY, "Extracting path's parent directory must be successful")                \
+  TEST_ERROR(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_TRUE, "Splitting string into parts must be successful")              \
+  TEST_ERROR(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_FALSE, "Splitting string into parts must be fail")
 
 enum text_test_error {
   TEXT_TEST_ERROR_NONE = 0,
-#define XX(tag, message) tag,
-  TEST_ERROR_LIST(XX)
-#undef XX
+#define TEST_ERROR(tag, message) tag,
+  TEST_ERROR_LIST
 
-  // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
-  // For the default exitcode testing protocol, the GNU standard approach in
-  // this case is to exit the program with error code 77. Meson will detect this
-  // and report these tests as skipped rather than failed. This behavior was
-  // added in version 0.37.0.
-  MESON_TEST_SKIP = 77,
+      // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
+      // For the default exitcode testing protocol, the GNU standard approach in
+      // this case is to exit the program with error code 77. Meson will detect this
+      // and report these tests as skipped rather than failed. This behavior was
+      // added in version 0.37.0.
+      MESON_TEST_SKIP = 77,
   // In addition, sometimes a test fails set up so that it should fail even if
   // it is marked as an expected failure. The GNU standard approach in this case
   // is to exit the program with error code 99. Again, Meson will detect this
@@ -49,10 +51,9 @@ comptime struct text_test_error_info {
   enum text_test_error code;
   struct string message;
 } TEXT_TEST_ERRORS[] = {
-#define XX(tag, msg) {.code = tag, .message = STRING_FROM_ZERO_TERMINATED(msg)},
-    TEST_ERROR_LIST(XX)
-#undef XX
-};
+#undef TEST_ERROR
+#define TEST_ERROR(tag, msg) {.code = tag, .message = STRING_FROM_ZERO_TERMINATED(msg)},
+    TEST_ERROR_LIST};
 
 internalfn string *
 GetTextTestErrorMessage(enum text_test_error errorCode)
@@ -154,7 +155,7 @@ main(void)
     }
   }
 
-  // IsStringEqual(struct string *left, struct string *right)
+  // b8 IsStringEqual(struct string *left, struct string *right)
   b8 IsStringEqualOK = 1;
   {
     struct test_case {
@@ -166,6 +167,11 @@ main(void)
             .left = &STRING_FROM_ZERO_TERMINATED("abc"),
             .right = &STRING_FROM_ZERO_TERMINATED("abc"),
             .expected = 1,
+        },
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED("abc"),
+            .right = &STRING_FROM_ZERO_TERMINATED("ABC"),
+            .expected = 0,
         },
         {
             .left = &STRING_FROM_ZERO_TERMINATED("abc"),
@@ -243,6 +249,121 @@ main(void)
         IsStringEqualOK = 0;
         errorCode =
             expected ? TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_TRUE : TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_FALSE;
+
+        StringBuilderAppendString(sb, GetTextTestErrorMessage(errorCode));
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  left:     "));
+        StringBuilderAppendPrintableString(sb, left);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  right:    "));
+        StringBuilderAppendPrintableString(sb, right);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  expected: "));
+        StringBuilderAppendBool(sb, expected);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n       got: "));
+        StringBuilderAppendBool(sb, value);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+        struct string errorMessage = StringBuilderFlush(sb);
+        LogMessage(&errorMessage);
+      }
+    }
+  }
+
+  // b8 IsStringEqualIgnoreCase(struct string *left, struct string *right)
+  {
+    struct test_case {
+      struct string *left;
+      struct string *right;
+      b8 expected;
+    } testCases[] = {
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED("abc"),
+            .right = &STRING_FROM_ZERO_TERMINATED("ABC"),
+            .expected = 1,
+        },
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED("ABC"),
+            .right = &STRING_FROM_ZERO_TERMINATED("abc"),
+            .expected = 1,
+        },
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED("abc"),
+            .right = &STRING_FROM_ZERO_TERMINATED("abc"),
+            .expected = 1,
+        },
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED("abc"),
+            .right = &STRING_FROM_ZERO_TERMINATED("abc def ghi"),
+            .expected = 0,
+        },
+        // NULL
+        {
+            .left = &(struct string){.value = 0},
+            .right = &STRING_FROM_ZERO_TERMINATED("foo"),
+            .expected = 0,
+        },
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED("foo"),
+            .right = &(struct string){.value = 0},
+            .expected = 0,
+        },
+        {
+            .left = &(struct string){.value = 0},
+            .right = &(struct string){.value = 0},
+            .expected = 1,
+        },
+        // EMPTY
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED(""),
+            .right = &STRING_FROM_ZERO_TERMINATED(""),
+            .expected = 1,
+        },
+        {
+            .left = &(struct string){.value = 0},
+            .right = &STRING_FROM_ZERO_TERMINATED(""),
+            .expected = 0,
+        },
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED(""),
+            .right = &(struct string){.value = 0},
+            .expected = 0,
+        },
+        // SPACE
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED(" "),
+            .right = &STRING_FROM_ZERO_TERMINATED(" "),
+            .expected = 1,
+        },
+        {
+            .left = &(struct string){.value = 0},
+            .right = &STRING_FROM_ZERO_TERMINATED(" "),
+            .expected = 0,
+        },
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED(" "),
+            .right = &(struct string){.value = 0},
+            .expected = 0,
+        },
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED(""),
+            .right = &STRING_FROM_ZERO_TERMINATED(" "),
+            .expected = 0,
+        },
+        {
+            .left = &STRING_FROM_ZERO_TERMINATED(" "),
+            .right = &STRING_FROM_ZERO_TERMINATED(""),
+            .expected = 0,
+        },
+    };
+
+    for (u32 testCaseIndex = 0; testCaseIndex < ARRAY_COUNT(testCases); testCaseIndex++) {
+      struct test_case *testCase = testCases + testCaseIndex;
+
+      struct string *left = testCase->left;
+      struct string *right = testCase->right;
+      b8 expected = testCase->expected;
+      b8 value = IsStringEqualIgnoreCase(left, right);
+      if (value != expected) {
+        IsStringEqualOK = 0;
+        errorCode = expected ? TEXT_TEST_ERROR_IS_STRING_EQUAL_IGNORE_CASE_MUST_BE_TRUE
+                             : TEXT_TEST_ERROR_IS_STRING_EQUAL_IGNORE_CASE_MUST_BE_FALSE;
 
         StringBuilderAppendString(sb, GetTextTestErrorMessage(errorCode));
         StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  left:     "));
@@ -876,13 +997,14 @@ main(void)
     }
   }
 
-  // b8 StringSplit(struct string *string, u64 *splitCount, struct string *splits)
+  // b8 StringSplit(struct string *string, struct string *seperator, u64 *splitCount, struct string *splits)
   // Dependencies: IsStringEqual()
   if (IsStringEqualOK) {
     __cleanup_memory_temp__ memory_temp tempMemory = MemoryTempBegin(&stackMemory);
 
     struct test_case {
       struct string input;
+      struct string seperator;
       struct {
         b8 value;
         u64 splitCount;
@@ -891,6 +1013,7 @@ main(void)
     } testCases[] = {
         {
             .input = STRING_FROM_ZERO_TERMINATED("1 2 3"),
+            .seperator = STRING_FROM_ZERO_TERMINATED(" "),
             .expected =
                 {
                     .value = 1,
@@ -904,7 +1027,55 @@ main(void)
                 },
         },
         {
+            .input = STRING_FROM_ZERO_TERMINATED("1xx2xx3"),
+            .seperator = STRING_FROM_ZERO_TERMINATED("xx"),
+            .expected =
+                {
+                    .value = 1,
+                    .splitCount = 3,
+                    .splits =
+                        (struct string[]){
+                            STRING_FROM_ZERO_TERMINATED("1"),
+                            STRING_FROM_ZERO_TERMINATED("2"),
+                            STRING_FROM_ZERO_TERMINATED("3"),
+                        },
+                },
+        },
+        {
+            .input = STRING_FROM_ZERO_TERMINATED("1xoxo2xo3"),
+            .seperator = STRING_FROM_ZERO_TERMINATED("xo"),
+            .expected =
+                {
+                    .value = 1,
+                    .splitCount = 4,
+                    .splits =
+                        (struct string[]){
+                            STRING_FROM_ZERO_TERMINATED("1"),
+                            {},
+                            STRING_FROM_ZERO_TERMINATED("2"),
+                            STRING_FROM_ZERO_TERMINATED("3"),
+                        },
+                },
+        },
+        {
+            .input = STRING_FROM_ZERO_TERMINATED("1xo2xo3xo"),
+            .seperator = STRING_FROM_ZERO_TERMINATED("xo"),
+            .expected =
+                {
+                    .value = 1,
+                    .splitCount = 4,
+                    .splits =
+                        (struct string[]){
+                            STRING_FROM_ZERO_TERMINATED("1"),
+                            STRING_FROM_ZERO_TERMINATED("2"),
+                            STRING_FROM_ZERO_TERMINATED("3"),
+                            {},
+                        },
+                },
+        },
+        {
             .input = STRING_FROM_ZERO_TERMINATED("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+            .seperator = STRING_FROM_ZERO_TERMINATED(" "),
             .expected =
                 {
                     .value = 1,
@@ -929,11 +1100,16 @@ main(void)
       struct test_case *testCase = testCases + testCaseIndex;
 
       struct string *input = &testCase->input;
+      struct string *seperator = &testCase->seperator;
+
+      if (IsStringEqual(input, &STRING_FROM_ZERO_TERMINATED("1xoxo2xo3"))) {
+        u32 breakHere = 1;
+      }
 
       u64 expectedSplitCount = testCase->expected.splitCount;
       b8 expected = testCase->expected.value;
       u64 splitCount;
-      b8 value = StringSplit(input, &splitCount, 0);
+      b8 value = StringSplit(input, seperator, &splitCount, 0);
       if (value != expected || splitCount != expectedSplitCount) {
         errorCode = expected ? TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_TRUE : TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_FALSE;
 
@@ -955,10 +1131,9 @@ main(void)
         struct string errorMessage = StringBuilderFlush(sb);
         LogMessage(&errorMessage);
       } else {
-
         struct string *expectedSplits = testCase->expected.splits;
         struct string *splits = MemoryArenaPushUnaligned(tempMemory.arena, sizeof(*splits) * splitCount);
-        StringSplit(input, &splitCount, splits);
+        StringSplit(input, seperator, &splitCount, splits);
 
         for (u32 splitIndex = 0; splitIndex < splitCount; splitIndex++) {
           struct string *expectedSplit = expectedSplits + splitIndex;
@@ -976,9 +1151,9 @@ main(void)
             StringBuilderAppendU64(sb, splitIndex);
             StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" is wrong"));
             StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n     expected: "));
-            StringBuilderAppendString(sb, expectedSplit);
+            StringBuilderAppendPrintableString(sb, expectedSplit);
             StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n          got: "));
-            StringBuilderAppendString(sb, split);
+            StringBuilderAppendPrintableString(sb, split);
             StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
             struct string errorMessage = StringBuilderFlush(sb);
             LogMessage(&errorMessage);
