@@ -2,51 +2,52 @@
 #include "physics.c"
 #include "string_builder.h"
 
-#define TEST_ERROR_LIST                                                                                                \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_RIGHT,                                                       \
-             "Finding furthest point for box volume in direction of top right failed.")                                \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_LEFT,                                                        \
-             "Finding furthest point for box volume in direction of top left failed.")                                 \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_LEFT,                                                     \
-             "Finding furthest point for box volume in direction of bottom left failed.")                              \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_RIGHT,                                                    \
-             "Finding furthest point for box volume in direction of bottom right failed.")                             \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_RIGHT,                                                    \
-             "Finding furthest point for box volume in direction of center right failed.")                             \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_LEFT,                                                     \
-             "Finding furthest point for box volume in direction of center left failed.")                              \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_UP,                                                       \
-             "Finding furthest point for box volume in direction of center up failed.")                                \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_DOWN,                                                     \
-             "Finding furthest point for box volume in direction of center down failed.")                              \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_RIGHT,                                                    \
-             "Finding furthest point for circle volume in direction of top right failed.")                             \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_LEFT,                                                     \
-             "Finding furthest point for circle volume in direction of top left failed.")                              \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_LEFT,                                                  \
-             "Finding furthest point for circle volume in direction of bottom left failed.")                           \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_RIGHT,                                                 \
-             "Finding furthest point for circle volume in direction of bottom right failed.")                          \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_RIGHT,                                                 \
-             "Finding furthest point for circle volume in direction of center right failed.")                          \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_LEFT,                                                  \
-             "Finding furthest point for circle volume in direction of center left failed.")                           \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_UP,                                                    \
-             "Finding furthest point for circle volume in direction of center up failed.")                             \
-  TEST_ERROR(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_DOWN,                                                  \
-             "Finding furthest point for circle volume in direction of center down failed.")
+#define TEST_ERROR_LIST(XX)                                                                                            \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_RIGHT,                                                               \
+     "Finding furthest point for box volume in direction of top right failed.")                                        \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_LEFT,                                                                \
+     "Finding furthest point for box volume in direction of top left failed.")                                         \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_LEFT,                                                             \
+     "Finding furthest point for box volume in direction of bottom left failed.")                                      \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_RIGHT,                                                            \
+     "Finding furthest point for box volume in direction of bottom right failed.")                                     \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_RIGHT,                                                            \
+     "Finding furthest point for box volume in direction of center right failed.")                                     \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_LEFT,                                                             \
+     "Finding furthest point for box volume in direction of center left failed.")                                      \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_UP,                                                               \
+     "Finding furthest point for box volume in direction of center up failed.")                                        \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_DOWN,                                                             \
+     "Finding furthest point for box volume in direction of center down failed.")                                      \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_RIGHT,                                                            \
+     "Finding furthest point for circle volume in direction of top right failed.")                                     \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_LEFT,                                                             \
+     "Finding furthest point for circle volume in direction of top left failed.")                                      \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_LEFT,                                                          \
+     "Finding furthest point for circle volume in direction of bottom left failed.")                                   \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_RIGHT,                                                         \
+     "Finding furthest point for circle volume in direction of bottom right failed.")                                  \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_RIGHT,                                                         \
+     "Finding furthest point for circle volume in direction of center right failed.")                                  \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_LEFT,                                                          \
+     "Finding furthest point for circle volume in direction of center left failed.")                                   \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_UP,                                                            \
+     "Finding furthest point for circle volume in direction of center up failed.")                                     \
+  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_DOWN,                                                          \
+     "Finding furthest point for circle volume in direction of center down failed.")
 
 enum physics_test_error {
   PHYSICS_TEST_ERROR_NONE = 0,
-#define TEST_ERROR(name, message) name,
-  TEST_ERROR_LIST
+#define XX(name, message) name,
+  TEST_ERROR_LIST(XX)
+#undef XX
 
-      // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
-      // For the default exitcode testing protocol, the GNU standard approach in
-      // this case is to exit the program with error code 77. Meson will detect this
-      // and report these tests as skipped rather than failed. This behavior was
-      // added in version 0.37.0.
-      MESON_TEST_SKIP = 77,
+  // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
+  // For the default exitcode testing protocol, the GNU standard approach in
+  // this case is to exit the program with error code 77. Meson will detect this
+  // and report these tests as skipped rather than failed. This behavior was
+  // added in version 0.37.0.
+  MESON_TEST_SKIP = 77,
   // In addition, sometimes a test fails set up so that it should fail even if
   // it is marked as an expected failure. The GNU standard approach in this case
   // is to exit the program with error code 99. Again, Meson will detect this
@@ -59,9 +60,10 @@ comptime struct physics_test_error_info {
   enum physics_test_error code;
   string message;
 } PHYSICS_TEST_ERRORS[] = {
-#undef TEST_ERROR
-#define TEST_ERROR(name, msg) {.code = name, .message = STRING_FROM_ZERO_TERMINATED(msg)},
-    TEST_ERROR_LIST};
+#define XX(name, msg) {.code = name, .message = STRING_FROM_ZERO_TERMINATED(msg)},
+    TEST_ERROR_LIST(XX)
+#undef XX
+};
 
 static string *
 GetPhysicsTestErrorMessage(enum physics_test_error errorCode)

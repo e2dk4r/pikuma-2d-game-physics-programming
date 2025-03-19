@@ -2,40 +2,41 @@
 #include "string_builder.h"
 #include "text.h"
 
-#define TEST_ERROR_LIST                                                                                                \
-  TEST_ERROR(TEXT_TEST_ERROR_STRING_FROM_ZERO_TERMINATED, "Failed to create string from zero terminated c-string")     \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_TRUE, "Strings must be equal")                                    \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_FALSE, "Strings must NOT be equal")                               \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_TRUE, "String must contain search string")                    \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_FALSE, "String must NOT contain search string")               \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_TRUE, "String must start with search string")              \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_FALSE, "String must NOT start with search string")         \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_TRUE, "String must end with search string")                  \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_FALSE, "String must NOT end with search string")             \
-  TEST_ERROR(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_TRUE, "Parsing duration string must be successful")               \
-  TEST_ERROR(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_FALSE, "Parsing duration string must fail")                       \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_TRUE, "lhs duration must be less then rhs")                \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_FALSE, "lhs duration must NOT be less then rhs")           \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_TRUE, "lhs duration must be grater then rhs")            \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_FALSE, "lhs duration must NOT be grater then rhs")       \
-  TEST_ERROR(TEXT_TEST_ERROR_FORMATU64_EXPECTED, "Formatting u64 value must be successful")                            \
-  TEST_ERROR(TEXT_TEST_ERROR_FORMATF32SLOW_EXPECTED, "Formatting f32 value must be successful")                        \
-  TEST_ERROR(TEXT_TEST_ERROR_FORMATHEX_EXPECTED, "Formatting value to hex must be successful")                         \
-  TEST_ERROR(TEXT_TEST_ERROR_PATHGETDIRECTORY, "Extracting path's parent directory must be successful")                \
-  TEST_ERROR(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_TRUE, "Splitting string into parts must be successful")              \
-  TEST_ERROR(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_FALSE, "Splitting string into parts must be fail")
+#define TEST_ERROR_LIST(XX)                                                                                            \
+  XX(TEXT_TEST_ERROR_STRING_FROM_ZERO_TERMINATED, "Failed to create string from zero terminated c-string")             \
+  XX(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_TRUE, "Strings must be equal")                                            \
+  XX(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_FALSE, "Strings must NOT be equal")                                       \
+  XX(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_TRUE, "String must contain search string")                            \
+  XX(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_FALSE, "String must NOT contain search string")                       \
+  XX(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_TRUE, "String must start with search string")                      \
+  XX(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_FALSE, "String must NOT start with search string")                 \
+  XX(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_TRUE, "String must end with search string")                          \
+  XX(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_FALSE, "String must NOT end with search string")                     \
+  XX(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_TRUE, "Parsing duration string must be successful")                       \
+  XX(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_FALSE, "Parsing duration string must fail")                               \
+  XX(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_TRUE, "lhs duration must be less then rhs")                        \
+  XX(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_FALSE, "lhs duration must NOT be less then rhs")                   \
+  XX(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_TRUE, "lhs duration must be grater then rhs")                    \
+  XX(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_FALSE, "lhs duration must NOT be grater then rhs")               \
+  XX(TEXT_TEST_ERROR_FORMATU64_EXPECTED, "Formatting u64 value must be successful")                                    \
+  XX(TEXT_TEST_ERROR_FORMATF32SLOW_EXPECTED, "Formatting f32 value must be successful")                                \
+  XX(TEXT_TEST_ERROR_FORMATHEX_EXPECTED, "Formatting value to hex must be successful")                                 \
+  XX(TEXT_TEST_ERROR_PATHGETDIRECTORY, "Extracting path's parent directory must be successful")                        \
+  XX(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_TRUE, "Splitting string into parts must be successful")                      \
+  XX(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_FALSE, "Splitting string into parts must be fail")
 
 enum text_test_error {
   TEXT_TEST_ERROR_NONE = 0,
-#define TEST_ERROR(tag, message) tag,
-  TEST_ERROR_LIST
+#define XX(tag, message) tag,
+  TEST_ERROR_LIST(XX)
+#undef XX
 
-      // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
-      // For the default exitcode testing protocol, the GNU standard approach in
-      // this case is to exit the program with error code 77. Meson will detect this
-      // and report these tests as skipped rather than failed. This behavior was
-      // added in version 0.37.0.
-      MESON_TEST_SKIP = 77,
+  // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
+  // For the default exitcode testing protocol, the GNU standard approach in
+  // this case is to exit the program with error code 77. Meson will detect this
+  // and report these tests as skipped rather than failed. This behavior was
+  // added in version 0.37.0.
+  MESON_TEST_SKIP = 77,
   // In addition, sometimes a test fails set up so that it should fail even if
   // it is marked as an expected failure. The GNU standard approach in this case
   // is to exit the program with error code 99. Again, Meson will detect this
@@ -48,9 +49,10 @@ comptime struct text_test_error_info {
   enum text_test_error code;
   struct string message;
 } TEXT_TEST_ERRORS[] = {
-#undef TEST_ERROR
-#define TEST_ERROR(tag, msg) {.code = tag, .message = STRING_FROM_ZERO_TERMINATED(msg)},
-    TEST_ERROR_LIST};
+#define XX(tag, msg) {.code = tag, .message = STRING_FROM_ZERO_TERMINATED(msg)},
+    TEST_ERROR_LIST(XX)
+#undef XX
+};
 
 internalfn string *
 GetTextTestErrorMessage(enum text_test_error errorCode)
