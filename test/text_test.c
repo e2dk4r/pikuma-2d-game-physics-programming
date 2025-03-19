@@ -112,7 +112,6 @@ main(void)
 
   // struct string StringFromZeroTerminated(u8 *src, u64 max)
   {
-    u32 maxStringLength = 1024;
     struct test_case {
       char *input;
       u64 length;
