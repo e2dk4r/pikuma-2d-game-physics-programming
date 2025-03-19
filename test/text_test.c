@@ -10,6 +10,8 @@
   TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_FALSE, "String must NOT contain search string")               \
   TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_TRUE, "String must start with search string")              \
   TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_FALSE, "String must NOT start with search string")         \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_TRUE, "String must end with search string")                  \
+  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_FALSE, "String must NOT end with search string")             \
   TEST_ERROR(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_TRUE, "Parsing duration string must be successful")               \
   TEST_ERROR(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_FALSE, "Parsing duration string must fail")                       \
   TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_TRUE, "lhs duration must be less then rhs")                \
@@ -363,6 +365,68 @@ main(void)
       if (value != expected) {
         errorCode = expected ? TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_TRUE
                              : TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_FALSE;
+
+        StringBuilderAppendString(sb, GetTextTestErrorMessage(errorCode));
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  string:   "));
+        StringBuilderAppendString(sb, string);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  search:   "));
+        StringBuilderAppendString(sb, search);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  expected: "));
+        StringBuilderAppendBool(sb, expected);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n       got: "));
+        StringBuilderAppendBool(sb, value);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+        struct string errorMessage = StringBuilderFlush(sb);
+        LogMessage(&errorMessage);
+      }
+    }
+  }
+
+  // b8 IsStringEndsWith(struct string *string, struct string *search)
+  {
+    struct test_case {
+      struct string string;
+      struct string search;
+      b8 expected;
+      enum text_test_error error;
+    } testCases[] = {
+        {
+            .string = STRING_FROM_ZERO_TERMINATED("abc def ghi"),
+            .search = STRING_FROM_ZERO_TERMINATED("ghi"),
+            .expected = 1,
+        },
+        {
+            .string = STRING_FROM_ZERO_TERMINATED("abc def ghi"),
+            .search = STRING_FROM_ZERO_TERMINATED("abc"),
+            .expected = 0,
+        },
+        {
+            .string = STRING_FROM_ZERO_TERMINATED("abc def ghi"),
+            .search = STRING_FROM_ZERO_TERMINATED("def"),
+            .expected = 0,
+        },
+        {
+            .string = STRING_FROM_ZERO_TERMINATED("abc def ghi"),
+            .search = STRING_FROM_ZERO_TERMINATED("abc def"),
+            .expected = 0,
+        },
+        {
+            .string = STRING_FROM_ZERO_TERMINATED("abc def ghi"),
+            .search = STRING_FROM_ZERO_TERMINATED("jkl"),
+            .expected = 0,
+        },
+    };
+
+    for (u32 testCaseIndex = 0; testCaseIndex < ARRAY_COUNT(testCases); testCaseIndex++) {
+      struct test_case *testCase = testCases + testCaseIndex;
+
+      struct string *string = &testCase->string;
+      struct string *search = &testCase->search;
+      b8 expected = testCase->expected;
+      b8 value = IsStringEndsWith(string, search);
+      if (value != expected) {
+        errorCode = expected ? TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_TRUE
+                             : TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_FALSE;
 
         StringBuilderAppendString(sb, GetTextTestErrorMessage(errorCode));
         StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  string:   "));

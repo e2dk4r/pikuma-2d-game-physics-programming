@@ -111,6 +111,22 @@ IsStringStartsWith(struct string *string, struct string *search)
   return 1;
 }
 
+static inline b8
+IsStringEndsWith(struct string *string, struct string *search)
+{
+  if (!string || !search || string->length < search->length)
+    return 0;
+
+  for (u64 searchIndex = 0; searchIndex < search->length; searchIndex++) {
+    b8 isCharactersNotMatching =
+        string->value[string->length - 1 - searchIndex] != search->value[search->length - 1 - searchIndex];
+    if (isCharactersNotMatching)
+      return 0;
+  }
+
+  return 1;
+}
+
 struct duration {
   u64 ns;
 };
