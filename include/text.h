@@ -302,6 +302,37 @@ ParseU64(struct string *string, u64 *value)
   return 1;
 }
 
+static inline b8
+ParseHex(struct string *string, u64 *value)
+{
+  // max 0xffffffffffffffff => 18446744073709551615
+  if (!string || IsStringNull(string) || IsStringEmpty(string) || string->length > 16)
+    return 0;
+
+  u64 parsed = 0;
+  for (u64 index = 0; index < string->length; index++) {
+    comptime u8 ASCIItoHEX[256] = {
+        16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16, 16, 16, 16, 16, 16, 16,
+        16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16, 16, 16, 16, 16, 16, 16,
+        16,  16,  16,  16,  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 16,  16, 16, 16, 16, 16, 16, 0xA,
+        0xB, 0xC, 0xD, 0xE, 0xF, 16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16, 16, 16, 16, 16, 16, 16,
+        16,  16,  16,  16,  16,  16,  16,  16,  16,  0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 16, 16, 16, 16, 16, 16, 16,
+        16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16, 16, 16};
+    u8 digitCharacter = string->value[index];
+    u8 digit = ASCIItoHEX[digitCharacter];
+
+    b8 isHexadecimal = digit != 16;
+    if (!isHexadecimal)
+      return 0;
+
+    u64 power = (string->length - 1) - index;
+    parsed += (u64)digit * ((u64)1 << (4 * power));
+  }
+
+  *value = parsed;
+  return 1;
+}
+
 /*
  * string buffer must at least able to hold 1 bytes, at most 20 bytes.
  */

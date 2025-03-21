@@ -2,43 +2,45 @@
 #include "string_builder.h"
 #include "text.h"
 
-#define TEST_ERROR_LIST                                                                                                \
-  TEST_ERROR(TEXT_TEST_ERROR_STRING_FROM_ZERO_TERMINATED, "Failed to create string from zero terminated c-string")     \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_TRUE, "Strings must be equal")                                    \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_FALSE, "Strings must NOT be equal")                               \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_EQUAL_IGNORE_CASE_MUST_BE_TRUE, "Strings that are case ignored must be equal")  \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_EQUAL_IGNORE_CASE_MUST_BE_FALSE,                                                \
-             "Strings that are case ignored must NOT be equal")                                                        \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_TRUE, "String must contain search string")                    \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_FALSE, "String must NOT contain search string")               \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_TRUE, "String must start with search string")              \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_FALSE, "String must NOT start with search string")         \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_TRUE, "String must end with search string")                  \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_FALSE, "String must NOT end with search string")             \
-  TEST_ERROR(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_TRUE, "Parsing duration string must be successful")               \
-  TEST_ERROR(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_FALSE, "Parsing duration string must fail")                       \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_TRUE, "lhs duration must be less then rhs")                \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_FALSE, "lhs duration must NOT be less then rhs")           \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_TRUE, "lhs duration must be grater then rhs")            \
-  TEST_ERROR(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_FALSE, "lhs duration must NOT be grater then rhs")       \
-  TEST_ERROR(TEXT_TEST_ERROR_FORMATU64_EXPECTED, "Formatting u64 value must be successful")                            \
-  TEST_ERROR(TEXT_TEST_ERROR_FORMATF32SLOW_EXPECTED, "Formatting f32 value must be successful")                        \
-  TEST_ERROR(TEXT_TEST_ERROR_FORMATHEX_EXPECTED, "Formatting value to hex must be successful")                         \
-  TEST_ERROR(TEXT_TEST_ERROR_PATHGETDIRECTORY, "Extracting path's parent directory must be successful")                \
-  TEST_ERROR(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_TRUE, "Splitting string into parts must be successful")              \
-  TEST_ERROR(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_FALSE, "Splitting string into parts must be fail")
+#define TEST_ERROR_LIST(XX)                                                                                            \
+  XX(TEXT_TEST_ERROR_STRING_FROM_ZERO_TERMINATED, "Failed to create string from zero terminated c-string")             \
+  XX(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_TRUE, "Strings must be equal")                                            \
+  XX(TEXT_TEST_ERROR_IS_STRING_EQUAL_MUST_BE_FALSE, "Strings must NOT be equal")                                       \
+  XX(TEXT_TEST_ERROR_IS_STRING_EQUAL_IGNORE_CASE_MUST_BE_TRUE, "Strings that are case ignored must be equal")          \
+  XX(TEXT_TEST_ERROR_IS_STRING_EQUAL_IGNORE_CASE_MUST_BE_FALSE, "Strings that are case ignored must NOT be equal")     \
+  XX(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_TRUE, "String must contain search string")                            \
+  XX(TEXT_TEST_ERROR_IS_STRING_CONTAINS_EXPECTED_FALSE, "String must NOT contain search string")                       \
+  XX(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_TRUE, "String must start with search string")                      \
+  XX(TEXT_TEST_ERROR_IS_STRING_STARTS_WITH_EXPECTED_FALSE, "String must NOT start with search string")                 \
+  XX(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_TRUE, "String must end with search string")                          \
+  XX(TEXT_TEST_ERROR_IS_STRING_ENDS_WITH_EXPECTED_FALSE, "String must NOT end with search string")                     \
+  XX(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_TRUE, "Parsing duration string must be successful")                       \
+  XX(TEXT_TEST_ERROR_PARSE_DURATION_EXPECTED_FALSE, "Parsing duration string must fail")                               \
+  XX(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_TRUE, "lhs duration must be less then rhs")                        \
+  XX(TEXT_TEST_ERROR_IS_DURATION_LESS_THAN_EXPECTED_FALSE, "lhs duration must NOT be less then rhs")                   \
+  XX(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_TRUE, "lhs duration must be grater then rhs")                    \
+  XX(TEXT_TEST_ERROR_IS_DURATION_GRATER_THAN_EXPECTED_FALSE, "lhs duration must NOT be grater then rhs")               \
+  XX(TEXT_TEST_ERROR_PARSE_HEX_EXPECTED_TRUE, "Parsing hexadecimal value must be successful")                          \
+  XX(TEXT_TEST_ERROR_PARSE_HEX_EXPECTED_FALSE, "Parsing hexadecimal value must fail")                                  \
+  XX(TEXT_TEST_ERROR_FORMATU64_EXPECTED, "Formatting u64 value must be successful")                                    \
+  XX(TEXT_TEST_ERROR_FORMATF32SLOW_EXPECTED, "Formatting f32 value must be successful")                                \
+  XX(TEXT_TEST_ERROR_FORMATHEX_EXPECTED, "Formatting value to hex must be successful")                                 \
+  XX(TEXT_TEST_ERROR_PATHGETDIRECTORY, "Extracting path's parent directory must be successful")                        \
+  XX(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_TRUE, "Splitting string into parts must be successful")                      \
+  XX(TEXT_TEST_ERROR_STRINGSPLIT_EXPECTED_FALSE, "Splitting string into parts must be fail")
 
 enum text_test_error {
   TEXT_TEST_ERROR_NONE = 0,
-#define TEST_ERROR(tag, message) tag,
-  TEST_ERROR_LIST
+#define XX(tag, message) tag,
+  TEST_ERROR_LIST(XX)
+#undef XX
 
-      // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
-      // For the default exitcode testing protocol, the GNU standard approach in
-      // this case is to exit the program with error code 77. Meson will detect this
-      // and report these tests as skipped rather than failed. This behavior was
-      // added in version 0.37.0.
-      MESON_TEST_SKIP = 77,
+  // src: https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
+  // For the default exitcode testing protocol, the GNU standard approach in
+  // this case is to exit the program with error code 77. Meson will detect this
+  // and report these tests as skipped rather than failed. This behavior was
+  // added in version 0.37.0.
+  MESON_TEST_SKIP = 77,
   // In addition, sometimes a test fails set up so that it should fail even if
   // it is marked as an expected failure. The GNU standard approach in this case
   // is to exit the program with error code 99. Again, Meson will detect this
@@ -51,9 +53,10 @@ comptime struct text_test_error_info {
   enum text_test_error code;
   struct string message;
 } TEXT_TEST_ERRORS[] = {
-#undef TEST_ERROR
-#define TEST_ERROR(tag, msg) {.code = tag, .message = STRING_FROM_ZERO_TERMINATED(msg)},
-    TEST_ERROR_LIST};
+#define XX(tag, msg) {.code = tag, .message = STRING_FROM_ZERO_TERMINATED(msg)},
+    TEST_ERROR_LIST(XX)
+#undef XX
+};
 
 internalfn string *
 GetTextTestErrorMessage(enum text_test_error errorCode)
@@ -727,6 +730,109 @@ main(void)
     }
   }
 
+  // b8 ParseHex(struct string *string, u64 *value)
+  {
+    struct test_case {
+      struct string input;
+      struct {
+        b8 result;
+        u64 value;
+      } expected;
+    } testCases[] = {
+        {
+            .input = STRING_FROM_ZERO_TERMINATED("0"),
+            .expected =
+                {
+                    .result = 1,
+                    .value = 0x0,
+                },
+        },
+        {
+            .input = STRING_FROM_ZERO_TERMINATED("fa"),
+            .expected =
+                {
+                    .result = 1,
+                    .value = 0xfa,
+                },
+        },
+        {
+            .input = STRING_FROM_ZERO_TERMINATED("123456789abcdef"),
+            .expected =
+                {
+                    .result = 1,
+                    .value = 0x123456789abcdef,
+                },
+        },
+        {
+            .input = STRING_FROM_ZERO_TERMINATED("123456789ABCDEF"),
+            .expected =
+                {
+                    .result = 1,
+                    .value = 0x123456789ABCDEF,
+                },
+        },
+        {
+            .input = STRING_FROM_ZERO_TERMINATED("ffffffffffffffff"),
+            .expected =
+                {
+                    .result = 1,
+                    .value = 0xffffffffffffffff,
+                },
+        },
+        {
+            .input = {},
+            .expected =
+                {
+                    .result = 0,
+                },
+        },
+        {
+            .input = STRING_FROM_ZERO_TERMINATED(""),
+            .expected =
+                {
+                    .result = 0,
+                },
+        },
+        {
+            .input = STRING_FROM_ZERO_TERMINATED("not a hexadecimal 1340"),
+            .expected =
+                {
+                    .result = 0,
+                },
+        },
+    };
+
+    for (u32 testCaseIndex = 0; testCaseIndex < ARRAY_COUNT(testCases); testCaseIndex++) {
+      struct test_case *testCase = testCases + testCaseIndex;
+
+      struct string *input = &testCase->input;
+      b8 expectedResult = testCase->expected.result;
+      u64 expectedValue = testCase->expected.value;
+      u64 value;
+      b8 result = ParseHex(input, &value);
+      if (result != expectedResult || (expectedResult && value != expectedValue)) {
+        errorCode = expectedResult ? TEXT_TEST_ERROR_PARSE_HEX_EXPECTED_TRUE : TEXT_TEST_ERROR_PARSE_HEX_EXPECTED_FALSE;
+
+        StringBuilderAppendString(sb, GetTextTestErrorMessage(errorCode));
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  input:    "));
+        StringBuilderAppendPrintableString(sb, input);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  expected: "));
+        if (result != expectedResult)
+          StringBuilderAppendBool(sb, expectedResult);
+        else
+          StringBuilderAppendU64(sb, expectedValue);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n       got: "));
+        if (result != expectedResult)
+          StringBuilderAppendBool(sb, result);
+        else
+          StringBuilderAppendU64(sb, value);
+        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+        struct string errorMessage = StringBuilderFlush(sb);
+        LogMessage(&errorMessage);
+      }
+    }
+  }
+
   // struct string FormatU64(struct string *stringBuffer, u64 value)
   // Dependencies: IsStringEqual()
   if (IsStringEqualOK) {
@@ -1101,10 +1207,6 @@ main(void)
 
       struct string *input = &testCase->input;
       struct string *seperator = &testCase->seperator;
-
-      if (IsStringEqual(input, &STRING_FROM_ZERO_TERMINATED("1xoxo2xo3"))) {
-        u32 breakHere = 1;
-      }
 
       u64 expectedSplitCount = testCase->expected.splitCount;
       b8 expected = testCase->expected.value;
