@@ -531,7 +531,7 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
   { // - string builder
     memory_arena sbMemory = MemoryArenaSub(&memory, STRING_BUILDER_MEMORY_USAGE);
     string *stringBuffer = MakeString(&sbMemory, 32);
-    string *outBuffer = MakeString(&sbMemory, sbMemory.total - sbMemory.used);
+    string *outBuffer = MakeString(&sbMemory, sbMemory.total - sbMemory.used - sizeof(*outBuffer));
 
     string_builder *sb = &state->sb;
     sb->outBuffer = outBuffer;
