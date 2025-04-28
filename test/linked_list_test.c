@@ -24,7 +24,7 @@ EntryAdd(struct state *state, u32 value)
     entry = state->entriesFree;
     state->entriesFree = state->entriesFree->next;
   } else {
-    entry = MemoryArenaPushUnaligned(state->memory, sizeof(*entry));
+    entry = MemoryArenaPush(state->memory, sizeof(*entry));
   }
 
   entry->value = value;
@@ -101,22 +101,19 @@ int
 main(void)
 {
   enum linked_list_test_error errorCode = LINKED_LIST_TEST_ERROR_NONE;
-  memory_arena memory;
+
+  // setup
+  enum { KILOBYTES = (1 << 10) };
+  u8 stackBuffer[8 * KILOBYTES];
+  memory_arena stackMemory = {
+      .block = stackBuffer,
+      .total = ARRAY_COUNT(stackBuffer),
+  };
+  bzero(stackMemory.block, stackMemory.total);
   memory_temp tempMemory;
 
-  {
-    u64 KILOBYTES = 1 << 10;
-    u64 total = 1 * KILOBYTES;
-    memory = (memory_arena){.block = alloca(total), .total = total};
-    if (memory.block == 0) {
-      errorCode = MESON_TEST_FAILED_TO_SET_UP;
-      goto end;
-    }
-    bzero(memory.block, memory.total);
-  }
-
   // EntryAdd(struct state *state, u32 value)
-  tempMemory = MemoryTempBegin(&memory);
+  tempMemory = MemoryTempBegin(&stackMemory);
   {
     struct state state = {
         .memory = tempMemory.arena,
@@ -137,7 +134,7 @@ main(void)
   }
   MemoryTempEnd(&tempMemory);
 
-  tempMemory = MemoryTempBegin(&memory);
+  tempMemory = MemoryTempBegin(&stackMemory);
   {
     struct state state = {
         .memory = tempMemory.arena,
@@ -145,14 +142,14 @@ main(void)
         .entriesFree = 0,
     };
 
-    struct entry *entryA = MemoryArenaPushUnaligned(state.memory, sizeof(*entryA));
+    struct entry *entryA = MemoryArenaPush(state.memory, sizeof(*entryA));
     entryA->value = 2;
     entryA->next = 0;
     state.entries = entryA;
-    struct entry *entryC = MemoryArenaPushUnaligned(state.memory, sizeof(*entryC));
+    struct entry *entryC = MemoryArenaPush(state.memory, sizeof(*entryC));
     entryC->value = 3;
     entryC->next = 0;
-    struct entry *entryB = MemoryArenaPushUnaligned(state.memory, sizeof(*entryB));
+    struct entry *entryB = MemoryArenaPush(state.memory, sizeof(*entryB));
     entryB->value = 4;
     entryB->next = entryC;
     state.entriesFree = entryB;
@@ -183,7 +180,7 @@ main(void)
   MemoryTempEnd(&tempMemory);
 
   // EntryRemove(struct state *state, u32 value)
-  tempMemory = MemoryTempBegin(&memory);
+  tempMemory = MemoryTempBegin(&stackMemory);
   {
     struct state state = {
         .memory = tempMemory.arena,
@@ -192,15 +189,15 @@ main(void)
     };
 
     // prepare list
-    struct entry *entryA = MemoryArenaPushUnaligned(state.memory, sizeof(*entryA));
+    struct entry *entryA = MemoryArenaPush(state.memory, sizeof(*entryA));
     entryA->value = 11;
     entryA->next = 0;
-    struct entry *entryB = MemoryArenaPushUnaligned(state.memory, sizeof(*entryB));
+    struct entry *entryB = MemoryArenaPush(state.memory, sizeof(*entryB));
     entryB->value = 12;
     entryB->next = entryA;
     state.entries = entryB;
     // prepare free list
-    struct entry *entryC = MemoryArenaPushUnaligned(state.memory, sizeof(*entryC));
+    struct entry *entryC = MemoryArenaPush(state.memory, sizeof(*entryC));
     entryC->value = 13;
     entryC->next = 0;
     state.entriesFree = entryC;
@@ -230,7 +227,7 @@ main(void)
   }
   MemoryTempEnd(&tempMemory);
 
-  tempMemory = MemoryTempBegin(&memory);
+  tempMemory = MemoryTempBegin(&stackMemory);
   {
     struct state state = {
         .memory = tempMemory.arena,
@@ -239,13 +236,13 @@ main(void)
     };
 
     // prepare list
-    struct entry *entryA = MemoryArenaPushUnaligned(state.memory, sizeof(*entryA));
+    struct entry *entryA = MemoryArenaPush(state.memory, sizeof(*entryA));
     entryA->value = 11;
     entryA->next = 0;
-    struct entry *entryB = MemoryArenaPushUnaligned(state.memory, sizeof(*entryB));
+    struct entry *entryB = MemoryArenaPush(state.memory, sizeof(*entryB));
     entryB->value = 12;
     entryB->next = entryA;
-    struct entry *entryC = MemoryArenaPushUnaligned(state.memory, sizeof(*entryC));
+    struct entry *entryC = MemoryArenaPush(state.memory, sizeof(*entryC));
     entryC->value = 13;
     entryC->next = entryB;
     state.entries = entryC;
@@ -275,7 +272,7 @@ main(void)
   }
   MemoryTempEnd(&tempMemory);
 
-  tempMemory = MemoryTempBegin(&memory);
+  tempMemory = MemoryTempBegin(&stackMemory);
   {
     struct state state = {
         .memory = tempMemory.arena,
@@ -284,13 +281,13 @@ main(void)
     };
 
     // prepare list
-    struct entry *entryA = MemoryArenaPushUnaligned(state.memory, sizeof(*entryA));
+    struct entry *entryA = MemoryArenaPush(state.memory, sizeof(*entryA));
     entryA->value = 11;
     entryA->next = 0;
-    struct entry *entryB = MemoryArenaPushUnaligned(state.memory, sizeof(*entryB));
+    struct entry *entryB = MemoryArenaPush(state.memory, sizeof(*entryB));
     entryB->value = 12;
     entryB->next = entryA;
-    struct entry *entryC = MemoryArenaPushUnaligned(state.memory, sizeof(*entryC));
+    struct entry *entryC = MemoryArenaPush(state.memory, sizeof(*entryC));
     entryC->value = 13;
     entryC->next = entryB;
     state.entries = entryC;

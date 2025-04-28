@@ -2,17 +2,24 @@
 
 #include "assert.h"
 #include "math.h"
+#include "memory.h"
 #include "type.h"
 
-typedef struct string {
+struct string {
   u8 *value;
   u64 length;
-} string;
+};
 
-#define STRING_FROM_ZERO_TERMINATED(src)                                                                               \
+typedef struct string string;
+
+/*
+ * Only accepts readonly, compile-time C strings.
+ * Do NOT pass char
+ */
+#define StringFromLiteral(source)                                                                                      \
   ((struct string){                                                                                                    \
-      .value = (u8 *)src,                                                                                              \
-      .length = sizeof(src) - 1,                                                                                       \
+      .value = (u8 *)source,                                                                                           \
+      .length = sizeof(source) - 1,                                                                                    \
   })
 
 static inline struct string
@@ -30,7 +37,7 @@ static inline struct string
 StringFromZeroTerminated(u8 *src, u64 max)
 {
   debug_assert(src != 0);
-  struct string string = {};
+  struct string string = {.value = 0, .length = 0};
 
   string.value = src;
 
@@ -44,6 +51,25 @@ StringFromZeroTerminated(u8 *src, u64 max)
   return string;
 }
 
+static inline struct string *
+MakeString(memory_arena *arena, u64 length)
+{
+  struct string *result = MemoryArenaPush(arena, sizeof(*result));
+  result->length = length;
+  result->value = MemoryArenaPush(arena, result->length);
+  return result;
+}
+
+static inline struct string
+StringSlice(struct string *string, u64 startIndex, u64 endIndex)
+{
+  debug_assert(string != 0);
+  debug_assert(startIndex < endIndex);
+  debug_assert(endIndex - startIndex <= string->length);
+  struct string sliced = {.value = string->value + startIndex, .length = endIndex - startIndex};
+  return sliced;
+}
+
 static inline b8
 IsStringNull(struct string *string)
 {
@@ -54,6 +80,12 @@ static inline b8
 IsStringEmpty(struct string *string)
 {
   return string && string->value != 0 && string->length == 0;
+}
+
+static inline b8
+IsStringNullOrEmpty(struct string *string)
+{
+  return IsStringNull(string) || IsStringEmpty(string);
 }
 
 static inline b8
@@ -75,6 +107,12 @@ IsStringEqual(struct string *left, struct string *right)
   }
 
   return 1;
+}
+
+static inline b8
+IsStringNotEqual(struct string *left, struct string *right)
+{
+  return !IsStringEqual(left, right);
 }
 
 static u8
@@ -113,24 +151,22 @@ IsStringContains(struct string *string, struct string *search)
     return 0;
 
   for (u64 stringIndex = 0; stringIndex < string->length; stringIndex++) {
-    b8 isFound = 1;
-    for (u64 searchIndex = 0, substringIndex = stringIndex; searchIndex < search->length;
-         searchIndex++, substringIndex++) {
-      b8 isEndOfString = substringIndex == string->length;
-      if (isEndOfString) {
-        isFound = 0;
-        break;
-      }
+    if (stringIndex + search->length > string->length)
+      return 0;
 
-      b8 isCharactersNotMatching = string->value[substringIndex] != search->value[searchIndex];
-      if (isCharactersNotMatching) {
+    struct string substring = StringSlice(string, stringIndex, stringIndex + search->length);
+    b8 isFound = 1;
+    for (u64 index = 0; index < substring.length; index++) {
+      if (substring.value[index] != search->value[index]) {
         isFound = 0;
         break;
       }
     }
 
-    if (isFound)
-      return 1;
+    if (!isFound)
+      continue;
+
+    return 1;
   }
 
   return 0;
@@ -139,40 +175,210 @@ IsStringContains(struct string *string, struct string *search)
 static inline b8
 IsStringStartsWith(struct string *string, struct string *search)
 {
-  if (!string || !search || string->length < search->length)
+  if (!string || !search || search->length == 0 || string->length < search->length)
     return 0;
 
-  for (u64 searchIndex = 0; searchIndex < search->length; searchIndex++) {
-    b8 isCharactersNotMatching = string->value[searchIndex] != search->value[searchIndex];
-    if (isCharactersNotMatching)
+  struct string substring = StringSlice(string, 0, search->length);
+  for (u64 index = 0; index < substring.length; index++) {
+    if (substring.value[index] != search->value[index])
       return 0;
   }
-
   return 1;
 }
 
 static inline b8
 IsStringEndsWith(struct string *string, struct string *search)
 {
-  if (!string || !search || string->length < search->length)
+  if (!string || !search || search->length == 0 || string->length < search->length)
     return 0;
 
-  for (u64 searchIndex = 0; searchIndex < search->length; searchIndex++) {
-    b8 isCharactersNotMatching =
-        string->value[string->length - 1 - searchIndex] != search->value[search->length - 1 - searchIndex];
-    if (isCharactersNotMatching)
+  struct string substring = StringSlice(string, string->length - search->length, string->length);
+  for (u64 index = 0; index < substring.length; index++) {
+    if (substring.value[index] != search->value[index])
       return 0;
   }
-
   return 1;
+}
+
+static struct string
+StringStripWhitespace(struct string *string)
+{
+  struct string result = {.value = 0, .length = 0};
+  if (!string || string->length == 0)
+    return result;
+
+  b8 whitespace[U8_MAX] = {
+      // horizontal tab, line feed, vertical tab, form feed, carriage return, space
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, // 0x00
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x10
+      1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x20
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x30
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x40
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x50
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x60
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x70
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x80
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x90
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xa0
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xb0
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xc0
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xd0
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xe0
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0     // 0xf0
+  };
+
+  u64 position = 0;
+  while (position < string->length) {
+    u8 character = string->value[position];
+    if (!whitespace[character])
+      break;
+    position++;
+  }
+  u64 start = position;
+
+  position = string->length - 1;
+  while (position > start) {
+    u8 character = string->value[position];
+    if (!whitespace[character])
+      break;
+    position--;
+  }
+  u64 end = position + 1;
+
+  if (end == start)
+    return result;
+
+  result.value = string->value + start;
+  result.length = end - start;
+  return result;
 }
 
 struct duration {
   u64 ns;
 };
 
-#define DURATION_IN_SECONDS(seconds) ((struct duration){.ns = (seconds) * 1e9L})
-#define DURATION_IN_DAYS(days) ((struct duration){.ns = 1e9L * 60 * 60 * 24 * days})
+static inline void
+DurationAddRef(struct duration *duration, struct duration elapsed)
+{
+  duration->ns += elapsed.ns;
+}
+
+static inline struct duration
+DurationAddList(struct duration *list, u64 count)
+{
+  struct duration result = {.ns = 0};
+  for (u64 index = 0; index < count; index++) {
+    struct duration *duration = list + index;
+    DurationAddRef(&result, *duration);
+  }
+  return result;
+}
+
+#define DurationAddMultiple(...)                                                                                       \
+  DurationAddList((struct duration[]){__VA_ARGS__}, sizeof((struct duration[]){__VA_ARGS__}) / sizeof(struct duration))
+
+static inline void
+DurationSubRef(struct duration *duration, struct duration elapsed)
+{
+  duration->ns -= elapsed.ns;
+}
+
+static inline struct duration
+DurationSubList(struct duration *list, u64 count)
+{
+  struct duration result = {.ns = 0};
+  for (u64 index = 0; index < count; index++) {
+    struct duration *duration = list + index;
+    DurationSubRef(&result, *duration);
+  }
+  return result;
+}
+
+#define DurationSubMultiple(...)                                                                                       \
+  DurationSubList((struct duration[]){__VA_ARGS__}, sizeof((struct duration[]){__VA_ARGS__}) / sizeof(struct duration))
+
+static inline struct duration
+DurationInNanoseconds(u64 nanoseconds)
+{
+  return (struct duration){
+      .ns = nanoseconds,
+  };
+}
+
+static inline struct duration
+DurationInMicroseconds(u64 microseconds)
+{
+  return (struct duration){
+      .ns = microseconds * 1000 /* 1e3 */,
+  };
+}
+
+static inline struct duration
+DurationInMilliseconds(u64 milliseconds)
+{
+  return (struct duration){
+      .ns = milliseconds * 1000000 /* 1e6 */,
+  };
+}
+
+static inline struct duration
+DurationInSeconds(u64 seconds)
+{
+  return (struct duration){
+      .ns = seconds * 1000000000 /* 1e9 */,
+  };
+}
+
+static inline struct duration
+DurationInMinutes(u64 minutes)
+{
+  return (struct duration){
+      .ns = minutes * 1000000000 /* 1e9 */ * 60,
+  };
+}
+
+static inline struct duration
+DurationInHours(u64 hours)
+{
+  return (struct duration){
+      .ns = hours * 1000000000 /* 1e9 */ * 60 * 60,
+  };
+}
+
+static inline struct duration
+DurationInDays(u64 days)
+{
+  return (struct duration){
+      .ns = days * 1000000000 /* 1e9 */ * 60 * 60 * 24,
+  };
+}
+
+static inline struct duration
+DurationInWeeks(u64 weeks)
+{
+  return (struct duration){
+      .ns = weeks * 1000000000 /* 1e9 */ * 60 * 60 * 24 * 7,
+  };
+}
+
+static inline struct duration
+DurationBetweenSeconds(u64 start, u64 end)
+{
+  debug_assert(end >= start);
+  return (struct duration){
+      .ns = (end - start) * 1000000000 /* 1e9 */,
+  };
+}
+
+static inline struct duration
+DurationBetweenNanoseconds(u64 start, u64 end)
+{
+  debug_assert(end >= start);
+  return (struct duration){
+      .ns = end - start,
+  };
+}
+
 static inline b8
 ParseDuration(struct string *string, struct duration *duration)
 {
@@ -189,21 +395,14 @@ ParseDuration(struct string *string, struct duration *duration)
   // | hr       | hour        |
   // | day      | day         |
   // | wk       | week        |
-
-#define UNIT_STRING(variableName, zeroTerminatedString)                                                                \
-  static struct string variableName = {                                                                                \
-      .value = (u8 *)zeroTerminatedString,                                                                             \
-      .length = sizeof(zeroTerminatedString) - 1,                                                                      \
-  }
-  UNIT_STRING(nanosecondUnitString, "ns");
-  UNIT_STRING(microsecondUnitString, "us");
-  UNIT_STRING(millisocondUnitString, "ms");
-  UNIT_STRING(secondUnitString, "sec");
-  UNIT_STRING(minuteUnitString, "min");
-  UNIT_STRING(hourUnitString, "hr");
-  UNIT_STRING(dayUnitString, "day");
-  UNIT_STRING(weekUnitString, "wk");
-#undef UNIT_STRING
+  struct string nanosecondUnitString = StringFromLiteral("ns");
+  struct string microsecondUnitString = StringFromLiteral("us");
+  struct string millisocondUnitString = StringFromLiteral("ms");
+  struct string secondUnitString = StringFromLiteral("sec");
+  struct string minuteUnitString = StringFromLiteral("min");
+  struct string hourUnitString = StringFromLiteral("hr");
+  struct string dayUnitString = StringFromLiteral("day");
+  struct string weekUnitString = StringFromLiteral("wk");
 
   b8 isUnitExistsInString =
       IsStringContains(string, &secondUnitString) || IsStringContains(string, &minuteUnitString) ||
@@ -214,7 +413,7 @@ ParseDuration(struct string *string, struct duration *duration)
     return 0;
   }
 
-  struct duration parsed = {};
+  struct duration parsed = {.ns = 0};
   u64 value = 0;
   for (u64 index = 0; index < string->length; index++) {
     u8 digitCharacter = string->value[index];
@@ -223,28 +422,28 @@ ParseDuration(struct string *string, struct duration *duration)
       // - get unit
       struct string unitString = {.value = string->value + index, .length = string->length - index};
       if (/* unit: nanosecond */ IsStringStartsWith(&unitString, &nanosecondUnitString)) {
-        parsed.ns += value;
+        DurationAddRef(&parsed, DurationInNanoseconds(value));
         index += nanosecondUnitString.length - 1;
       } else if (/* unit: microsecond */ IsStringStartsWith(&unitString, &microsecondUnitString)) {
-        parsed.ns += value * 1000 /* 1e3 */;
+        DurationAddRef(&parsed, DurationInMicroseconds(value));
         index += microsecondUnitString.length - 1;
       } else if (/* unit: millisecond */ IsStringStartsWith(&unitString, &millisocondUnitString)) {
-        parsed.ns += value * 1000000 /* 1e6 */;
+        DurationAddRef(&parsed, DurationInMilliseconds(value));
         index += millisocondUnitString.length - 1;
       } else if (/* unit: second */ IsStringStartsWith(&unitString, &secondUnitString)) {
-        parsed.ns += value * 1000000000 /* 1e9 */;
+        DurationAddRef(&parsed, DurationInSeconds(value));
         index += secondUnitString.length - 1;
       } else if (/* unit: minute */ IsStringStartsWith(&unitString, &minuteUnitString)) {
-        parsed.ns += value * 1000000000 /* 1e9 */ * 60;
+        DurationAddRef(&parsed, DurationInMinutes(value));
         index += minuteUnitString.length;
       } else if (/* unit: hour */ IsStringStartsWith(&unitString, &hourUnitString)) {
-        parsed.ns += value * 1000000000 /* 1e9 */ * 60 * 60;
+        DurationAddRef(&parsed, DurationInHours(value));
         index += hourUnitString.length - 1;
       } else if (/* unit: day */ IsStringStartsWith(&unitString, &dayUnitString)) {
-        parsed.ns += value * 1000000000 /* 1e9 */ * 60 * 60 * 24;
+        DurationAddRef(&parsed, DurationInDays(value));
         index += dayUnitString.length - 1;
       } else if (/* unit: week */ IsStringStartsWith(&unitString, &weekUnitString)) {
-        parsed.ns += value * 1000000000 /* 1e9 */ * 60 * 60 * 24 * 7;
+        DurationAddRef(&parsed, DurationInNanoseconds(value));
         index += weekUnitString.length - 1;
       } else {
         // unsupported unit
@@ -273,25 +472,60 @@ IsDurationLessThan(struct duration *left, struct duration *right)
 }
 
 static inline b8
-IsDurationGraterThan(struct duration *left, struct duration *right)
+IsDurationLessOrEqualThan(struct duration *left, struct duration *right)
+{
+  return left->ns <= right->ns;
+}
+
+static inline b8
+IsDurationGreaterThan(struct duration *left, struct duration *right)
 {
   return left->ns > right->ns;
+}
+
+static inline b8
+IsDurationGreaterOrEqualThan(struct duration *left, struct duration *right)
+{
+  return left->ns >= right->ns;
+}
+
+static inline b8
+IsDurationEqual(struct duration *left, struct duration *right)
+{
+  return left->ns == right->ns;
 }
 
 static inline b8
 ParseU64(struct string *string, u64 *value)
 {
   // max u64: 18446744073709551615
-  if (!string || string->length > 20)
+  if (!string || IsStringNull(string) || IsStringEmpty(string) || string->length > 20)
     return 0;
 
   u64 parsed = 0;
   for (u64 index = 0; index < string->length; index++) {
     u8 digitCharacter = string->value[index];
-    b8 isDigit = digitCharacter >= '0' && digitCharacter <= '9';
-    if (!isDigit) {
+    comptime b8 allowed[U8_MAX] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x00
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x10
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x20
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, // 0x30
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x40
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x50
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x60
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x70
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x80
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x90
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xa0
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xb0
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xc0
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xd0
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xe0
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0     // 0xf0
+    };
+    b8 isDigit = allowed[digitCharacter];
+    if (!isDigit)
       return 0;
-    }
 
     parsed *= 10;
     u8 digit = digitCharacter - (u8)'0';
@@ -302,44 +536,15 @@ ParseU64(struct string *string, u64 *value)
   return 1;
 }
 
-static inline b8
-ParseHex(struct string *string, u64 *value)
-{
-  // max 0xffffffffffffffff => 18446744073709551615
-  if (!string || IsStringNull(string) || IsStringEmpty(string) || string->length > 16)
-    return 0;
-
-  u64 parsed = 0;
-  for (u64 index = 0; index < string->length; index++) {
-    comptime u8 ASCIItoHEX[256] = {
-        16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16, 16, 16, 16, 16, 16, 16,
-        16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16, 16, 16, 16, 16, 16, 16,
-        16,  16,  16,  16,  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 16,  16, 16, 16, 16, 16, 16, 0xA,
-        0xB, 0xC, 0xD, 0xE, 0xF, 16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16, 16, 16, 16, 16, 16, 16,
-        16,  16,  16,  16,  16,  16,  16,  16,  16,  0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 16, 16, 16, 16, 16, 16, 16,
-        16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16, 16, 16};
-    u8 digitCharacter = string->value[index];
-    u8 digit = ASCIItoHEX[digitCharacter];
-
-    b8 isHexadecimal = digit != 16;
-    if (!isHexadecimal)
-      return 0;
-
-    u64 power = (string->length - 1) - index;
-    parsed += (u64)digit * ((u64)1 << (4 * power));
-  }
-
-  *value = parsed;
-  return 1;
-}
-
 /*
+ * Format u64 into string buffer
  * string buffer must at least able to hold 1 bytes, at most 20 bytes.
  */
 static inline struct string
 FormatU64(struct string *stringBuffer, u64 value)
 {
-  struct string result = {};
+  // max 18446744073709551615
+  struct string result = {.value = 0, .length = 0};
   if (!stringBuffer || stringBuffer->length == 0)
     return result;
 
@@ -369,10 +574,14 @@ FormatU64(struct string *stringBuffer, u64 value)
   return result;
 }
 
+/*
+ * Format s64 into string buffer
+ * string buffer must at least able to hold 1 bytes, at most 20 bytes.
+ */
 static inline struct string
 FormatS64(struct string *stringBuffer, s64 value)
 {
-  struct string result = {};
+  struct string result = {.value = 0, .length = 0};
   if (!stringBuffer || stringBuffer->length == 0)
     return result;
 
@@ -398,7 +607,7 @@ FormatF32Slow(struct string *stringBuffer, f32 value, u32 fractionCount)
 {
   debug_assert(fractionCount >= 1 && fractionCount <= 8);
 
-  struct string result = {};
+  struct string result = {.value = 0, .length = 0};
   if (!stringBuffer || stringBuffer->length < 3)
     return result;
 
@@ -477,11 +686,53 @@ FormatF32Slow(struct string *stringBuffer, f32 value, u32 fractionCount)
   return result;
 }
 
+static inline b8
+ParseHex(struct string *string, u64 *value)
+{
+  // max 0xffffffffffffffff => 18446744073709551615
+  if (!string || IsStringNull(string) || IsStringEmpty(string) || string->length > 16)
+    return 0;
+
+  u64 parsed = 0;
+  for (u64 index = 0; index < string->length; index++) {
+    comptime s8 ASCIItoHEX[256] = {
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0x00
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0x10
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0x20
+        0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, -1, -1, -1, -1, -1, -1, // 0x30
+        -1,  0xa, 0xb, 0xc, 0xd, 0xe, 0xf, -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0x40
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0x50
+        -1,  0xA, 0xB, 0xC, 0xD, 0xE, 0xF, -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0x60
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0x70
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0x80
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0x90
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0xa0
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0xb0
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0xc0
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0xd0
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1, -1, // 0xe0
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, -1, -1, -1, -1      // 0xf0
+    };
+    u8 digitCharacter = string->value[index];
+    s8 digit = ASCIItoHEX[digitCharacter];
+
+    b8 isHexadecimal = digit >= 0;
+    if (!isHexadecimal)
+      return 0;
+
+    u64 power = (string->length - 1) - index;
+    parsed += (u64)digit * ((u64)1 << (4 * power));
+  }
+
+  *value = parsed;
+  return 1;
+}
+
 /*
  *
  * Converts unsigned 64-bit integer to hex string.
  *
- * @param stringBuffer needs at least 18 bytes
+ * @param stringBuffer needs at least 2 bytes, at 16 maximum
  * @return sub string from stringBuffer, returns 0 on string.value on failure
  *
  * @note Adapted from
@@ -507,27 +758,21 @@ FormatF32Slow(struct string *stringBuffer, f32 value, u32 fractionCount)
 static inline struct string
 FormatHex(struct string *stringBuffer, u64 value)
 {
-  struct string result = {};
-  if (!stringBuffer || stringBuffer->length < 18)
+  struct string result = {.value = 0, .length = 0};
+  if (!stringBuffer || stringBuffer->length < 2)
     return result;
 
   if (value == 0) {
     // edge case 0x00
     u8 *digit = stringBuffer->value;
     *digit++ = '0';
-    *digit++ = 'x';
-    *digit++ = '0';
     *digit++ = '0';
     result.value = stringBuffer->value;
-    result.length = 4;
+    result.length = 2;
     return result;
   }
 
   u64 index = 0;
-  stringBuffer->value[index] = '0';
-  index++;
-  stringBuffer->value[index] = 'x';
-  index++;
 
   // 1 - pick good width
   u64 width;
@@ -561,7 +806,7 @@ FormatHex(struct string *stringBuffer, u64 value)
 static inline struct string
 PathGetDirectory(struct string *path)
 {
-  struct string directory = {};
+  struct string directory = {.value = 0, .length = 0};
 
   if (!path || !path->value || path->length == 0)
     return directory;
@@ -598,9 +843,8 @@ PathGetDirectory(struct string *path)
  * @return 1 when string can be split into parts, 0 otherwise.
  * @code
  *   u64 splitCount;
- *   string *separator = ;
- *   if (!StringSplit(string, separator, &splitCount, 0));
- *   if (splitCount == 1)
+ *   string *separator = &StringFromLiteral(" ");
+ *   if (!StringSplit(string, separator, &splitCount, 0))
  *     return;
  *   string *splits = MemoryArenaPush(arena, sizeof(*splits) * splitCount);
  *   StringSplit(string, separator, &splitCount, splits);
@@ -620,8 +864,12 @@ StringSplit(struct string *string, struct string *separator, u64 *splitCount, st
     for (u64 index = 0; index < string->length;) {
       struct string substring = StringFromBuffer(string->value + index, separator->length);
 
-      if (separator->length > string->length - index)
+      if (separator->length > string->length - index) {
+        if (count == 0)
+          // no separator found
+          return 0;
         break;
+      }
 
       if (IsStringEqual(&substring, separator)) {
         count++;
@@ -634,7 +882,6 @@ StringSplit(struct string *string, struct string *separator, u64 *splitCount, st
   } else {
     u64 startIndex = 0;
     u64 splitIndex = 0;
-    u64 splitMax = *splitCount;
 
     for (u64 index = 0; index < string->length;) {
       struct string substring = StringFromBuffer(string->value + index, separator->length);
@@ -659,7 +906,7 @@ StringSplit(struct string *string, struct string *separator, u64 *splitCount, st
     if (lastSplit.length == 0)
       lastSplit.value = 0;
     *(splits + splitIndex) = lastSplit;
-    debug_assert(splitIndex + 1 == splitMax);
+    debug_assert(splitIndex + 1 == *splitCount);
   }
 
   return 1;
@@ -668,5 +915,5 @@ StringSplit(struct string *string, struct string *separator, u64 *splitCount, st
 static inline b8
 StringSplitBySpace(struct string *string, u64 *splitCount, struct string *splits)
 {
-  return StringSplit(string, &STRING_FROM_ZERO_TERMINATED(" "), splitCount, splits);
+  return StringSplit(string, &StringFromLiteral(" "), splitCount, splits);
 }

@@ -38,7 +38,7 @@ typedef double f64;
 #define F64_LOWEST (-F64_MAX)
 #define F64_EPSILON (1.1920928955078125e-07F) /* 0x0.000002p0 */
 
-#define comptime const static
+#define comptime static const
 #define internalfn static
 #define globalvar static
 #define ARRAY_COUNT(a) (sizeof(a) / sizeof(a[0]))

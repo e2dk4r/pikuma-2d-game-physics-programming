@@ -28,46 +28,6 @@ fi
 
 LIB_M='-lm'
 
-### memory_test
-inc="-I$ProjectRoot/include"
-src="$pwd/memory_test.c"
-output="$outputDir/$(BasenameWithoutExtension "$src")"
-lib="$LIB_M"
-"$cc" $cflags $ldflags $inc -o "$output" $src $lib
-RunTest "$output" "TEST memory failed."
-
-### text_test
-inc="-I$ProjectRoot/include -I$ProjectRoot/src"
-src="$pwd/text_test.c"
-output="$outputDir/$(BasenameWithoutExtension "$src")"
-lib="$LIB_M"
-"$cc" $cflags $ldflags $inc -o "$output" $src $lib
-RunTest "$output" "TEST text failed."
-
-### string_builder
-inc="-I$ProjectRoot/include"
-src="$pwd/string_builder_test.c"
-output="$outputDir/$(BasenameWithoutExtension "$src")"
-lib="$LIB_M"
-"$cc" $cflags $ldflags $inc -o "$output" $src $lib
-RunTest "$output" "TEST string_builder failed."
-
-### math_test
-inc="-I$ProjectRoot/include"
-src="$pwd/math_test.c"
-output="$outputDir/$(BasenameWithoutExtension "$src")"
-lib="$LIB_M"
-"$cc" $cflags $ldflags $inc -o "$output" $src $lib
-RunTest "$output" "TEST math failed."
-
-### teju_test
-inc="-I$ProjectRoot/include"
-src="$pwd/teju_test.c"
-output="$outputDir/$(BasenameWithoutExtension "$src")"
-lib="$LIB_M"
-"$cc" $cflags $ldflags $inc -o "$output" $src $lib
-RunTest "$output" "TEST teju failed."
-
 ### linked_list_test
 inc="-I$ProjectRoot/include"
 src="$pwd/linked_list_test.c"

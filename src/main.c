@@ -57,11 +57,11 @@ GameLibraryReload(game_library *lib, sdl_state *state)
   // create absolute path, instead of relative
   string_builder *sb = &state->sb;
   StringBuilderAppendString(sb, &state->workingDirectory);
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("/")); // seperator
+  StringBuilderAppendStringLiteral(sb, "/"); // seperator
 #if IS_PLATFORM_LINUX
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("game.so"));
+  StringBuilderAppendStringLiteral(sb, "game.so");
 #elif IS_PLATFORM_WINDOWS
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("game.dll"));
+  StringBuilderAppendStringLiteral(sb, "game.dll");
 #endif
   string libPath = StringBuilderFlushZeroTerminated(sb);
 
@@ -94,7 +94,7 @@ GameLibraryReload(game_library *lib, sdl_state *state)
   debug_assert(lib->GameUpdateAndRender && "library malformed");
 
   {
-    string *message = &STRING_FROM_ZERO_TERMINATED("Reloaded library!\n");
+    string *message = &StringFromLiteral("Reloaded library!\n");
     LogMessage(message);
   }
 
@@ -117,7 +117,7 @@ RecordBegin(sdl_state *state)
   u64 writtenBytes = SDL_WriteIO(state->recordStream, memory->permanentStorage, totalStorageSize);
   debug_assert(writtenBytes == totalStorageSize);
 
-  string *message = &STRING_FROM_ZERO_TERMINATED("Record begin\n");
+  string *message = &StringFromLiteral("Record begin\n");
   LogMessage(message);
 }
 
@@ -136,7 +136,7 @@ RecordEnd(sdl_state *state)
   b8 isClosed = SDL_CloseIO(state->recordStream);
   debug_assert(isClosed);
 
-  string *message = &STRING_FROM_ZERO_TERMINATED("Record end\n");
+  string *message = &StringFromLiteral("Record end\n");
   LogMessage(message);
 }
 
@@ -153,7 +153,7 @@ PlaybackBegin(sdl_state *state)
   u64 readBytes = SDL_ReadIO(state->recordStream, memory->permanentStorage, totalStorageSize);
   debug_assert(readBytes == totalStorageSize);
 
-  string *message = &STRING_FROM_ZERO_TERMINATED("Playback begin\n");
+  string *message = &StringFromLiteral("Playback begin\n");
   LogMessage(message);
 }
 
@@ -190,7 +190,7 @@ PlaybackEnd(sdl_state *state)
   b8 isClosed = SDL_CloseIO(state->recordStream);
   debug_assert(isClosed);
 
-  string *message = &STRING_FROM_ZERO_TERMINATED("Playback end\n");
+  string *message = &StringFromLiteral("Playback end\n");
   LogMessage(message);
 }
 
@@ -512,7 +512,7 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
   }
 
   // setup game state
-  sdl_state *state = MemoryArenaPush(&memory, sizeof(*state), 4);
+  sdl_state *state = MemoryArenaPush(&memory, sizeof(*state));
   memset(state, 0, sizeof(*state));
 
   const s32 windowWidth = 1280;
@@ -530,10 +530,8 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
 
   { // - string builder
     memory_arena sbMemory = MemoryArenaSub(&memory, STRING_BUILDER_MEMORY_USAGE);
-    string *stringBuffer = MemoryArenaPush(&sbMemory, sizeof(*stringBuffer), 4);
-    *stringBuffer = MemoryArenaPushString(&sbMemory, 32);
-    string *outBuffer = MemoryArenaPush(&sbMemory, sizeof(*outBuffer), 4);
-    *outBuffer = MemoryArenaPushString(&sbMemory, sbMemory.total - sbMemory.used);
+    string *stringBuffer = MakeString(&sbMemory, 32);
+    string *outBuffer = MakeString(&sbMemory, sbMemory.total - sbMemory.used);
 
     string_builder *sb = &state->sb;
     sb->outBuffer = outBuffer;
@@ -550,11 +548,11 @@ SDL_AppInit(void **appstate, int argc, char *argv[])
   { // setup game memory
     game_memory *gameMemory = &state->memory;
     gameMemory->permanentStorageSize = PERMANANT_MEMORY_USAGE;
-    gameMemory->permanentStorage = MemoryArenaPush(&memory, gameMemory->permanentStorageSize, 4);
+    gameMemory->permanentStorage = MemoryArenaPush(&memory, gameMemory->permanentStorageSize);
     memset(gameMemory->permanentStorage, 0, gameMemory->permanentStorageSize);
 
     gameMemory->transientStorageSize = TRANSIENT_MEMORY_USAGE;
-    gameMemory->transientStorage = MemoryArenaPush(&memory, gameMemory->transientStorageSize, 4);
+    gameMemory->transientStorage = MemoryArenaPush(&memory, gameMemory->transientStorageSize);
 
     transient_state *transientState = gameMemory->transientStorage;
     transientState->sb = &state->sb;

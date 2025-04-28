@@ -36,7 +36,7 @@ Volume(memory_arena *memory, volume_type type, u64 typeSize)
   volume *result = 0;
 
   u64 size = sizeof(*result) + typeSize;
-  result = MemoryArenaPushUnaligned(memory, size);
+  result = MemoryArenaPush(memory, size);
   result->type = type;
 
   return result;
@@ -67,7 +67,7 @@ VolumePolygon(memory_arena *memory, u32 vertexCount, v2 verticies[static vertexC
   polygon = VolumeGetPolygon(volume);
 
   polygon->vertexCount = vertexCount;
-  v2 *allocatedVerticies = MemoryArenaPushUnaligned(memory, sizeof(*allocatedVerticies) * polygon->vertexCount);
+  v2 *allocatedVerticies = MemoryArenaPush(memory, sizeof(*allocatedVerticies) * polygon->vertexCount);
   for (u32 vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
     allocatedVerticies[vertexIndex] = verticies[vertexIndex];
   }

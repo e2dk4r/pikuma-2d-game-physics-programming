@@ -64,7 +64,7 @@ DrawCircle(game_renderer *gameRenderer, v2 position, f32 radius, f32 angle, v4 c
 
   u32 pointMax = 4096; // TODO: find maxiumum points needed from radius
   u32 pointCount = 0;
-  SDL_FPoint *points = MemoryArenaPush(memory.arena, sizeof(*points) * pointMax, 4);
+  SDL_FPoint *points = MemoryArenaPush(memory.arena, sizeof(*points) * pointMax);
 
 #if 0
   // TODO: radius <= 0.2f causes artifacts

@@ -120,7 +120,6 @@ typedef __float128 float128_t;
 typedef struct {
   teju32_u1_t mantissa;
   s32 exponent;
-  u8 sign : 1;
 } teju32_fields_t;
 
 //------------------------------------------------------------------------------
@@ -251,8 +250,8 @@ enum {
 #define teju_exponent_minimum -149
 #define teju_mantissa_size 23
 #define teju_storage_index_offset -45
-#define teju_calculation_div10 teju_built_in_2
-#define teju_calculation_mshift teju_built_in_2
+// #define teju_calculation_div10 teju_built_in_2
+// #define teju_calculation_mshift teju_built_in_2
 #define teju_calculation_shift 64
 
 #define teju_function teju_ieee32_no_uint128
@@ -402,30 +401,6 @@ teju_add_and_carry(teju_u1_t x, teju_u1_t y, teju_u1_t *c)
 }
 
 /**
- * @brief Returns the quotient q = (r2 * 2^(2 * N) + r1 * 2^N) / 2^s, where
- * N = teju_size and s = teju_calculation_shift.
- *
- * @param r2                The value of r2.
- * @param r1                The value of r1.
- *
- * @returns The quotient q.
- */
-static inline teju_u1_t
-teju_rshift(teju_u1_t const r2, teju_u1_t const r1)
-{
-
-#if teju_calculation_shift >= 2 * teju_size
-
-  return r2 >> (teju_calculation_shift - 2 * teju_size);
-
-#else
-
-  return r2 << (2 * teju_size - teju_calculation_shift) | r1 >> (teju_calculation_shift - teju_size);
-
-#endif
-}
-
-/**
  * @brief Returns the quotient q = ((u * 2^N + l) * m) / 2^s, where
  * N = teju_size and s = teju_calculation_shift.
  *
@@ -441,22 +416,7 @@ teju_mshift(teju_u1_t const m, teju_u1_t const u, teju_u1_t const l)
 
   // Let x := 2^N.
 
-#if teju_calculation_mshift == teju_built_in_4
-
-  teju_u2_t const n = (((teju_u2_t)u) << teju_size) | l;
-  return (((teju_u4_t)n) * m) >> teju_calculation_shift;
-
-#elif teju_calculation_mshift == teju_synthetic_2
-
-  // (u * x + l) * m = r2 * x^2 + r1 * x + r0,
-  //                   with r2, r1, r0 in [0, x[.
-
-  teju_u2_t const n = (((teju_u2_t)u) << teju_size) | l;
-  teju_u2_t r2;
-  teju_u2_t const r1 = teju_multiply(n, m, &r2) >> teju_size;
-  return teju_rshift(r2, r1);
-
-#elif teju_calculation_mshift == teju_built_in_2
+  //// #elif teju_calculation_mshift == teju_built_in_2
 
   // (u * x + l) * m = s1 * x + s0,
   //                       with s1 := u * m, s0 := l * m in [0, x^2[,
@@ -467,88 +427,6 @@ teju_mshift(teju_u1_t const m, teju_u1_t const u, teju_u1_t const l)
   teju_u2_t const s0 = ((teju_u2_t)l) * m;
   teju_u2_t const s1 = ((teju_u2_t)u) * m;
   return (u32)((s1 + (s0 >> teju_size)) >> (teju_calculation_shift - teju_size));
-
-#elif teju_calculation_mshift == teju_synthetic_1
-
-  // (u * x + l) * m = s1 * x + s0,
-  //                       with s1 := u * m, s0 := l * m in [0, x^2[,
-  //                 = (s11 * x + s10) * x + (s01 * x + s00),
-  //                       with s11 := s1 / x, s10 := s1 % x,
-  //                            s01 := s0 / x, s00 := s0 % x in [0, x[,
-  //                 = s11 * x^2 +(s10 + s01) * x + s00
-
-  teju_u1_t s01, s11, c;
-  (void)teju_multiply(l, m, &s01);
-  teju_u1_t const s10 = teju_multiply(u, m, &s11);
-  teju_u1_t const r0 = teju_add_and_carry(s01, s10, &c);
-  teju_u1_t const r1 = s11 + c;
-  return teju_rshift(r1, r0);
-
-#elif teju_calculation_mshift == teju_built_in_1
-
-  // Let y := 2^(N / 2), so that, x = y^2. Then:
-  // u := (n3 * y + n2) with n3 := u / y, n2 = u % y in [0, y[,
-  // l := (n1 * y + n0) with n1 := l / y, n0 = l % y in [0, y[,
-  // m := (m1 * y + m0) with m1 := m / y, m0 = m % y in [0, y[.
-
-  teju_u1_t const y = teju_pow2(teju_u1_t, teju_size / 2);
-  teju_u1_t const n3 = u / y;
-  teju_u1_t const n2 = u % y;
-  teju_u1_t const n1 = l / y;
-  teju_u1_t const n0 = l % y;
-  teju_u1_t const m1 = m / y;
-  teju_u1_t const m0 = m % y;
-
-  // result, carry, temporary:
-  teju_u1_t r1, r0, c, t;
-
-  // (u * x + l) * m
-  //     = ((n3 * y + n2) * y^2 + (n1 * y + n0)) * (m1 * y + m0),
-  //     = (n3 * y^3 + n2 * y^2 + n1 * y + n0) * (m1 * y + m0),
-  //     = (n3 * m1) * y^4 + (n3 * m0 + n2 * m1) * y^3 +
-  //       (n2 * m0 + n1 * m1) * y^2 + (n1 * m0 + n0 * m1) * y +
-  //       (n0 * m0)
-
-  // order 0:
-  t = n0 * m0;
-  r1 = t / y;
-
-  // order 1:
-  r1 += n0 * m1; // This addition doesn't wraparound.
-  t = n1 * m0;
-  r1 = teju_add_and_carry(r1, t, &c);
-  r1 /= y;
-
-  // order 2:
-  r1 += n1 * m1 + c * y; // This addition doesn't wraparound.
-  t = n2 * m0;
-  r1 = teju_add_and_carry(r1, t, &c);
-  r1 /= y;
-
-  // order 3:
-  r1 += n2 * m1 + c * y; // This addition doesn't wraparound.
-  t = n3 * m0;
-  r1 = teju_add_and_carry(r1, t, &c);
-  r0 = r1 % y;
-  r1 /= y;
-
-  // order 4:
-  r1 += n3 * m1 + c * y;
-
-#if teju_calculation_shift >= 2 * teju_size
-  (void)r0;
-  return r1 >> (teju_calculation_shift - 2 * teju_size);
-#elif teju_calculation_shift >= 3 * teju_size / 2
-  return (r1 << (2 * teju_size - teju_calculation_shift)) | (r0 >> (teju_calculation_shift - 3 * teju_size / 2));
-#else
-#error "Unsupported combination of size, shift and mshift calculation."
-#endif
-
-#else
-
-#error "Invalid definition of macro teju_calculation_mshift."
-
-#endif
 }
 
 /**
@@ -589,36 +467,10 @@ teju_div10(teju_u1_t const m)
 
   // TODO (CN): Assert that m is in the range of validity.
 
-#if !defined(teju_calculation_div10)
-
-  return m / 10;
-
-#elif teju_calculation_div10 == teju_built_in_2
+  //// #elif teju_calculation_div10 == teju_built_in_2
 
   teju_u1_t const inv10 = ((teju_u1_t)-1) / 10 + 1;
   return (teju_u1_t)((((teju_u2_t)inv10) * m) >> teju_size);
-
-#elif teju_calculation_div10 == teju_synthetic_1
-
-  teju_u1_t const inv10 = ((teju_u1_t)-1) / 10 + 1;
-  teju_u1_t upper;
-  (void)teju_multiply(inv10, m, &upper);
-  return upper;
-
-#elif teju_calculation_div10 == teju_built_in_1
-
-  teju_u1_t const p2 = ((teju_u1_t)1) << (teju_size / 2);
-  teju_u1_t const inv5 = (p2 - 1) / 5;
-  teju_u1_t const u = m / p2;
-  teju_u1_t const l = m % p2;
-
-  return (((l * (inv5 + 1)) / p2 + l * inv5 + u * (inv5 + 1)) / p2 + u * inv5) / 2;
-
-#else
-
-#error "Invalid definition of macro teju_calculation_div10."
-
-#endif
 }
 
 /**
@@ -697,12 +549,11 @@ teju_is_tie_uncentred(s32 const f)
  *
  * @param m                 The mantissa.
  * @param e                 The exponent.
- * @param s                 The sign.
  */
 static inline teju_fields_t
-teju_make_fields(teju_u1_t const m, s32 const e, u8 const s)
+teju_make_fields(teju_u1_t const m, s32 const e)
 {
-  teju_fields_t const fields = {m, e, (u8)(s & 1)};
+  teju_fields_t const fields = {m, e};
   return fields;
 }
 
@@ -718,24 +569,23 @@ teju_ror(teju_u1_t m)
 }
 
 /**
- * @brief Shortens the decimal representation m\cdot 10^e\f by removing trailing
+ * @brief Shortens the decimal representation m dot 10^e by removing trailing
  * zeros of m and increasing e.
  *
  * @param m                 The mantissa m.
  * @param e                 The exponent e.
- * @param s                 The sign s.
  *
  * @returns The fields of the shortest close decimal representation.
  */
 static inline teju_fields_t
-teju_remove_trailing_zeros(teju_u1_t m, s32 e, u8 s)
+teju_remove_trailing_zeros(teju_u1_t m, s32 e)
 {
   teju_u1_t const multiplier = teju_minverse[1].multiplier;
   teju_u1_t const bound = teju_minverse[1].bound / 2;
   while (1) {
     teju_u1_t const q = teju_ror(m * multiplier);
     if (q >= bound)
-      return teju_make_fields(m, e, s);
+      return teju_make_fields(m, e);
     ++e;
     m = q;
   }
@@ -758,7 +608,7 @@ teju_function(teju_fields_t const binary)
   teju_u1_t const m = binary.mantissa;
 
   if (teju_is_small_integer(m, e))
-    return teju_remove_trailing_zeros(m >> -e, 0, binary.sign);
+    return teju_remove_trailing_zeros(m >> -e, 0);
 
   teju_u1_t const m_0 = teju_pow2(teju_u1_t, teju_mantissa_size);
   s32 const f = teju_log10_pow2(e);
@@ -779,22 +629,22 @@ teju_function(teju_fields_t const binary)
     if (s >= a) {
       if (s == b) {
         if (m % 2 == 0 || !teju_is_tie(m_b, f))
-          return teju_remove_trailing_zeros(q, f + 1, binary.sign);
+          return teju_remove_trailing_zeros(q, f + 1);
       } else if (s > a || (m % 2 == 0 && teju_is_tie(m_a, f)))
-        return teju_remove_trailing_zeros(q, f + 1, binary.sign);
+        return teju_remove_trailing_zeros(q, f + 1);
     }
 
     if ((a + b) % 2 == 1)
-      return teju_make_fields((a + b) / 2 + 1, f, binary.sign);
+      return teju_make_fields((a + b) / 2 + 1, f);
 
     teju_u1_t const m_c = (2 * 2 * m) << r;
     teju_u1_t const c_2 = teju_mshift(m_c, u, l);
     teju_u1_t const c = c_2 / 2;
 
     if (c_2 % 2 == 0 || (c % 2 == 0 && teju_is_tie(c_2, -f)))
-      return teju_make_fields(c, f, binary.sign);
+      return teju_make_fields(c, f);
 
-    return teju_make_fields(c + 1, f, binary.sign);
+    return teju_make_fields(c + 1, f);
   }
 
   teju_u1_t const m_b = 2 * m_0 + 1;
@@ -809,7 +659,7 @@ teju_function(teju_fields_t const binary)
     teju_u1_t const s = 10 * q;
 
     if (s > a || (s == a && teju_is_tie_uncentred(f)))
-      return teju_remove_trailing_zeros(q, f + 1, binary.sign);
+      return teju_remove_trailing_zeros(q, f + 1);
 
     // m_c = 2 * 2 * m_0 = 2 * 2 * 2^{teju_mantissa_size}
     // c_2 = teju_mshift(m_c << r, upper, lower);
@@ -818,25 +668,25 @@ teju_function(teju_fields_t const binary)
     teju_u1_t const c = c_2 / 2;
 
     if (c == a && !teju_is_tie_uncentred(f))
-      return teju_make_fields(c + 1, f, binary.sign);
+      return teju_make_fields(c + 1, f);
 
     if (c_2 % 2 == 0 || (c % 2 == 0 && teju_is_tie(c_2, -f)))
-      return teju_make_fields(c, f, binary.sign);
+      return teju_make_fields(c, f);
 
-    return teju_make_fields(c + 1, f, binary.sign);
+    return teju_make_fields(c + 1, f);
   }
 
   else if (teju_is_tie_uncentred(f))
-    return teju_remove_trailing_zeros(a, f, binary.sign);
+    return teju_remove_trailing_zeros(a, f);
 
   teju_u1_t const m_c = 10 * 2 * 2 * m_0;
   teju_u1_t const c_2 = teju_mshift(m_c << r, u, l);
   teju_u1_t const c = c_2 / 2;
 
   if (c_2 % 2 == 0 || (c % 2 == 0 && teju_is_tie(c_2, -f)))
-    return teju_make_fields(c, f - 1, binary.sign);
+    return teju_make_fields(c, f - 1);
 
-  return teju_make_fields(c + 1, f - 1, binary.sign);
+  return teju_make_fields(c + 1, f - 1);
 }
 
 /**
@@ -873,7 +723,6 @@ teju_float_to_ieee32(f32 value)
   u32 bits = f.u;
 
   teju32_fields_t binary;
-  binary.sign = (bits & (u32)(1 << 31)) != 0;
   binary.mantissa = teju_lsb(bits, mantissa_size);
   bits >>= mantissa_size;
   binary.exponent = (s32)teju_lsb(bits, exponent_size);
@@ -897,14 +746,13 @@ teju_ieee32_to_binary(teju32_fields_t ieee32)
 
   s32 e = ieee32.exponent + exponent_min;
   u32 m = ieee32.mantissa;
-  u8 s = ieee32.sign;
 
   if (ieee32.exponent != 0) {
     e -= 1;
     m += teju_pow2(u64, mantissa_size);
   }
 
-  teju32_fields_t teju_binary = {m, e, (u8)(s & 1)};
+  teju32_fields_t teju_binary = {m, e};
   return teju_binary;
 }
 
@@ -929,7 +777,7 @@ FormatF32(struct string *stringBuffer, f32 value, u32 fractionCount)
   /*****************************************************************
    * INITIAL BUFFER CAPACITY CHECK
    *****************************************************************/
-  struct string result = {};
+  struct string result = {.value = 0, .length = 0};
   if (!stringBuffer
       // 1 for integer, 1 for point, plus fraction count is minimal
       || stringBuffer->length < 2 + fractionCount)
@@ -955,7 +803,7 @@ FormatF32(struct string *stringBuffer, f32 value, u32 fractionCount)
 
   // Convert float to mantissa/exponent/sign
   teju32_fields_t fields = teju_float_to_decimal(value);
-  b8 isNegative = fields.sign;
+  b8 isNegative = value < 0.0f;
   u64 mantissa = fields.mantissa;
   s32 exponent = fields.exponent;
 

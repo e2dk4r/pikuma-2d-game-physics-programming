@@ -60,7 +60,7 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
     // entities
     state->entityMax = 100 + 1;
-    state->entities = MemoryArenaPush(worldArena, sizeof(*state->entities) * state->entityMax, 4);
+    state->entities = MemoryArenaPush(worldArena, sizeof(*state->entities) * state->entityMax);
     state->entityCount = 1; // Entity index 0 means null entity
 
 #if 0
@@ -105,9 +105,9 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
   state->time += dt;
 #if (0 && IS_BUILD_DEBUG)
   {
-    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("dt: "));
+    StringBuilderAppendStringLiteral(sb, "dt: ");
     StringBuilderAppendF32(sb, dt, 4);
-    StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+    StringBuilderAppendStringLiteral(sb, "\n");
     string string = StringBuilderFlush(sb);
     LogMessage(&string);
   }
@@ -267,72 +267,71 @@ GameUpdateAndRender(game_memory *memory, game_input *input, game_renderer *rende
 
 #if (1 && IS_BUILD_DEBUG)
     {
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("entity #"));
+      StringBuilderAppendStringLiteral(sb, "entity #");
       StringBuilderAppendU64(sb, entityIndex);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+      StringBuilderAppendStringLiteral(sb, "\n");
 
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  volume: "));
+      StringBuilderAppendStringLiteral(sb, "  volume: ");
       switch (entity->volume->type) {
       case VOLUME_TYPE_CIRCLE: {
         volume_circle *circle = VolumeGetCircle(entity->volume);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("circle radius: "));
+        StringBuilderAppendStringLiteral(sb, "circle radius: ");
         StringBuilderAppendF32(sb, circle->radius, 2);
       } break;
       case VOLUME_TYPE_BOX: {
         volume_box *box = VolumeGetBox(entity->volume);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("box width: "));
+        StringBuilderAppendStringLiteral(sb, "box width: ");
         StringBuilderAppendF32(sb, box->width, 2);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" height: "));
+        StringBuilderAppendStringLiteral(sb, " height: ");
         StringBuilderAppendF32(sb, box->height, 2);
       } break;
       default: {
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("unknown"));
+        StringBuilderAppendStringLiteral(sb, "unknown");
       } break;
       }
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" mass: "));
+      StringBuilderAppendStringLiteral(sb, " mass: ");
       StringBuilderAppendF32(sb, entity->mass, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("kg"));
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+      StringBuilderAppendStringLiteral(sb, "kg");
+      StringBuilderAppendStringLiteral(sb, "\n");
 
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  pos: "));
+      StringBuilderAppendStringLiteral(sb, "  pos: ");
       StringBuilderAppendF32(sb, entity->position.x, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+      StringBuilderAppendStringLiteral(sb, ", ");
       StringBuilderAppendF32(sb, entity->position.y, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+      StringBuilderAppendStringLiteral(sb, "\n");
 
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  vel: "));
+      StringBuilderAppendStringLiteral(sb, "  vel: ");
       StringBuilderAppendF32(sb, entity->velocity.x, 10);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+      StringBuilderAppendStringLiteral(sb, ", ");
       StringBuilderAppendF32(sb, entity->velocity.y, 10);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+      StringBuilderAppendStringLiteral(sb, "\n");
 
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  acc: "));
+      StringBuilderAppendStringLiteral(sb, "  acc: ");
       StringBuilderAppendF32(sb, entity->acceleration.x, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+      StringBuilderAppendStringLiteral(sb, ", ");
       StringBuilderAppendF32(sb, entity->acceleration.y, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+      StringBuilderAppendStringLiteral(sb, "\n");
 
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  F:   "));
+      StringBuilderAppendStringLiteral(sb, "  F:   ");
       StringBuilderAppendF32(sb, entity->netForce.x, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+      StringBuilderAppendStringLiteral(sb, ", ");
       StringBuilderAppendF32(sb, entity->netForce.y, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+      StringBuilderAppendStringLiteral(sb, "\n");
 
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  θ: "));
+      StringBuilderAppendStringLiteral(sb, "  θ: ");
       StringBuilderAppendF32(sb, entity->rotation, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  ω: "));
+      StringBuilderAppendStringLiteral(sb, "  ω: ");
       StringBuilderAppendF32(sb, entity->angularVelocity, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  α: "));
+      StringBuilderAppendStringLiteral(sb, "  α: ");
       StringBuilderAppendF32(sb, entity->angularAcceleration, 2);
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("  τ: "));
+      StringBuilderAppendStringLiteral(sb, "  τ: ");
       StringBuilderAppendF32(sb, entity->netTorque, 2);
 
       if (isLastEntity) {
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
-        StringBuilderAppendString(
-            sb, &STRING_FROM_ZERO_TERMINATED("****************************************************************"));
+        StringBuilderAppendStringLiteral(sb, "\n");
+        StringBuilderAppendStringLiteral(sb, "****************************************************************");
       }
-      StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+      StringBuilderAppendStringLiteral(sb, "\n");
 
       string string = StringBuilderFlush(sb);
       LogMessage(&string);

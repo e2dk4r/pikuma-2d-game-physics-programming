@@ -123,7 +123,8 @@ Lerp(f32 a, f32 b, f32 t)
  * @param x is a 64-bit integer
  * @return number in range 0..63 or undefined if 𝑥 is 0
  *
- * @note Adapted from https://github.com/jart/cosmopolitan/blob/master/libc/intrin/bsrl.c
+ * @note Adapted from
+ * https://github.com/jart/cosmopolitan/blob/master/libc/intrin/bsrl.c
  * @copyright
  * ╒══════════════════════════════════════════════════════════════════════════════╕
  * │ Copyright 2023 Justine Alexandra Roberts Tunney                              │
@@ -197,7 +198,7 @@ typedef struct v2 {
 static inline v2
 V2(f32 x, f32 y)
 {
-  return (v2){x, y};
+  return (v2){.x = x, .y = y};
 }
 
 static inline void
@@ -278,7 +279,7 @@ v2_hadamard(v2 a, v2 b)
 static inline v2
 v2_perp(v2 a)
 {
-  return (v2){-a.y, a.x};
+  return (v2){.x = -a.y, .y = a.x};
 }
 
 static inline f32
@@ -296,13 +297,15 @@ v2_length(v2 a)
 static inline void
 v2_normalize_ref(v2 *a)
 {
+  f32 length;
+
   if (v2_length_square(*a) == 0.0f) {
     a->x = 0.0f;
     a->y = 0.0f;
     return;
   }
 
-  f32 length = v2_length(*a);
+  length = v2_length(*a);
   a->x /= length;
   a->y /= length;
 }
@@ -349,7 +352,7 @@ typedef struct v3 {
 static inline v3
 V3(f32 x, f32 y, f32 z)
 {
-  return (v3){x, y, z};
+  return (v3){.x = x, .y = y, .z = z};
 }
 
 static inline void
@@ -446,6 +449,8 @@ v3_length(v3 a)
 static inline void
 v3_normalize_ref(v3 *a)
 {
+  f32 length;
+
   if (v3_length_square(*a) == 0.0f) {
     a->x = 0.0f;
     a->y = 0.0f;
@@ -453,7 +458,7 @@ v3_normalize_ref(v3 *a)
     return;
   }
 
-  f32 length = v3_length(*a);
+  length = v3_length(*a);
   a->x /= length;
   a->y /= length;
   a->z /= length;
@@ -483,12 +488,13 @@ static inline void
 v3_cross_ref(v3 *a, v3 b)
 {
   /* see:
-   * - https://www.youtube.com/watch?v=eu6i7WJeinw "Cross products | Chapter 10, Essence of linear algebra"
+   * - https://www.youtube.com/watch?v=eu6i7WJeinw "Cross products | Chapter 10,
+   * Essence of linear algebra"
    */
   v3 crossProduct = {
-      a->y * b.z - a->z * b.y,
-      a->z * b.x - a->x * b.z,
-      a->x * b.y - a->y * b.x,
+      .x = a->y * b.z - a->z * b.y,
+      .y = a->z * b.x - a->x * b.z,
+      .z = a->x * b.y - a->y * b.x,
   };
   *a = crossProduct;
 }
@@ -586,7 +592,8 @@ IsAABBOverlapping(struct rect a, struct rect b)
   debug_assert(a.min.x < a.max.x && a.min.y < a.max.y && "invalid rect");
   debug_assert(b.min.x < b.max.x && b.min.y < b.max.y && "invalid rect");
 
-  // see: https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection#aabb_vs._aabb
+  // see:
+  // https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection#aabb_vs._aabb
   return
       // --AL--BL--AR--BR--
       // x axis, a's left less than b's right and b's right less than a's left

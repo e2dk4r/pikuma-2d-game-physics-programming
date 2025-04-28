@@ -109,28 +109,25 @@ int
 main(void)
 {
   enum doubly_linked_list_test_error errorCode = DOUBLY_LINKED_LIST_TEST_ERROR_NONE;
-  memory_arena memory;
+
+  // setup
+  enum { KILOBYTES = (1 << 10) };
+  u8 stackBuffer[8 * KILOBYTES];
+  memory_arena stackMemory = {
+      .block = stackBuffer,
+      .total = ARRAY_COUNT(stackBuffer),
+  };
+  bzero(stackMemory.block, stackMemory.total);
   memory_temp tempMemory;
 
-  {
-    u64 KILOBYTES = 1 << 10;
-    u64 total = 1 * KILOBYTES;
-    memory = (memory_arena){.block = alloca(total), .total = total};
-    if (memory.block == 0) {
-      errorCode = MESON_TEST_FAILED_TO_SET_UP;
-      goto end;
-    }
-    bzero(memory.block, memory.total);
-  }
-
   // EntryAppend(struct state *state, u32 value)
-  tempMemory = MemoryTempBegin(&memory);
+  tempMemory = MemoryTempBegin(&stackMemory);
   {
     struct state state = {
         .memory = tempMemory.arena,
         .max = 10,
     };
-    state.entries = MemoryArenaPushUnaligned(tempMemory.arena, sizeof(*state.entries) * state.max);
+    state.entries = MemoryArenaPush(tempMemory.arena, sizeof(*state.entries) * state.max);
     EntryAppend(&state, 1);
     EntryAppend(&state, 2);
     EntryAppend(&state, 3);
@@ -172,13 +169,13 @@ main(void)
   MemoryTempEnd(&tempMemory);
 
   // EntryPrepend(struct state *state, u32 value)
-  tempMemory = MemoryTempBegin(&memory);
+  tempMemory = MemoryTempBegin(&stackMemory);
   {
     struct state state = {
         .memory = tempMemory.arena,
         .max = 10,
     };
-    state.entries = MemoryArenaPushUnaligned(tempMemory.arena, sizeof(*state.entries) * state.max);
+    state.entries = MemoryArenaPush(tempMemory.arena, sizeof(*state.entries) * state.max);
     EntryPrepend(&state, 3);
     EntryPrepend(&state, 2);
     EntryPrepend(&state, 1);

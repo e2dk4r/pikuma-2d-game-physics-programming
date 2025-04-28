@@ -2,39 +2,39 @@
 #include "physics.c"
 #include "string_builder.h"
 
-#define TEST_ERROR_LIST(XX)                                                                                            \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_RIGHT,                                                               \
-     "Finding furthest point for box volume in direction of top right failed.")                                        \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_LEFT,                                                                \
-     "Finding furthest point for box volume in direction of top left failed.")                                         \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_LEFT,                                                             \
-     "Finding furthest point for box volume in direction of bottom left failed.")                                      \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_RIGHT,                                                            \
-     "Finding furthest point for box volume in direction of bottom right failed.")                                     \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_RIGHT,                                                            \
-     "Finding furthest point for box volume in direction of center right failed.")                                     \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_LEFT,                                                             \
-     "Finding furthest point for box volume in direction of center left failed.")                                      \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_UP,                                                               \
-     "Finding furthest point for box volume in direction of center up failed.")                                        \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_DOWN,                                                             \
-     "Finding furthest point for box volume in direction of center down failed.")                                      \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_RIGHT,                                                            \
-     "Finding furthest point for circle volume in direction of top right failed.")                                     \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_LEFT,                                                             \
-     "Finding furthest point for circle volume in direction of top left failed.")                                      \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_LEFT,                                                          \
-     "Finding furthest point for circle volume in direction of bottom left failed.")                                   \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_RIGHT,                                                         \
-     "Finding furthest point for circle volume in direction of bottom right failed.")                                  \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_RIGHT,                                                         \
-     "Finding furthest point for circle volume in direction of center right failed.")                                  \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_LEFT,                                                          \
-     "Finding furthest point for circle volume in direction of center left failed.")                                   \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_UP,                                                            \
-     "Finding furthest point for circle volume in direction of center up failed.")                                     \
-  XX(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_DOWN,                                                          \
-     "Finding furthest point for circle volume in direction of center down failed.")
+#define TEST_ERROR_LIST(X)                                                                                             \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_RIGHT,                                                                \
+    "Finding furthest point for box volume in direction of top right failed.")                                         \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_LEFT,                                                                 \
+    "Finding furthest point for box volume in direction of top left failed.")                                          \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_LEFT,                                                              \
+    "Finding furthest point for box volume in direction of bottom left failed.")                                       \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_RIGHT,                                                             \
+    "Finding furthest point for box volume in direction of bottom right failed.")                                      \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_RIGHT,                                                             \
+    "Finding furthest point for box volume in direction of center right failed.")                                      \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_LEFT,                                                              \
+    "Finding furthest point for box volume in direction of center left failed.")                                       \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_UP,                                                                \
+    "Finding furthest point for box volume in direction of center up failed.")                                         \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_DOWN,                                                              \
+    "Finding furthest point for box volume in direction of center down failed.")                                       \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_RIGHT,                                                             \
+    "Finding furthest point for circle volume in direction of top right failed.")                                      \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_LEFT,                                                              \
+    "Finding furthest point for circle volume in direction of top left failed.")                                       \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_LEFT,                                                           \
+    "Finding furthest point for circle volume in direction of bottom left failed.")                                    \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_RIGHT,                                                          \
+    "Finding furthest point for circle volume in direction of bottom right failed.")                                   \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_RIGHT,                                                          \
+    "Finding furthest point for circle volume in direction of center right failed.")                                   \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_LEFT,                                                           \
+    "Finding furthest point for circle volume in direction of center left failed.")                                    \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_UP,                                                             \
+    "Finding furthest point for circle volume in direction of center up failed.")                                      \
+  X(PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_DOWN,                                                           \
+    "Finding furthest point for circle volume in direction of center down failed.")
 
 enum physics_test_error {
   PHYSICS_TEST_ERROR_NONE = 0,
@@ -56,31 +56,32 @@ enum physics_test_error {
   MESON_TEST_FAILED_TO_SET_UP = 99,
 };
 
-comptime struct physics_test_error_info {
-  enum physics_test_error code;
-  string message;
-} PHYSICS_TEST_ERRORS[] = {
-#define XX(name, msg) {.code = name, .message = STRING_FROM_ZERO_TERMINATED(msg)},
-    TEST_ERROR_LIST(XX)
-#undef XX
-};
-
-static string *
-GetPhysicsTestErrorMessage(enum physics_test_error errorCode)
+internalfn inline void
+StringBuilderAppendTestError(string_builder *sb, enum physics_test_error errorCode)
 {
-  for (u32 index = 0; index < ARRAY_COUNT(PHYSICS_TEST_ERRORS); index++) {
-    const struct physics_test_error_info *info = PHYSICS_TEST_ERRORS + index;
-    if (info->code == errorCode)
-      return (struct string *)&info->message;
+  struct error {
+    enum physics_test_error code;
+    struct string message;
+  } errors[] = {
+#define X(name, msg) {.code = name, .message = StringFromLiteral(msg)},
+      TEST_ERROR_LIST(X)
+#undef X
+  };
+
+  struct string message = StringFromLiteral("Unknown error");
+  for (u32 errorIndex = 0; errorIndex < ARRAY_COUNT(errors); errorIndex++) {
+    struct error *error = errors + errorIndex;
+    if (errorCode == error->code)
+      message = error->message;
   }
-  return 0;
+  StringBuilderAppendString(sb, &message);
 }
 
-static inline void
+internalfn inline void
 StringBuilderAppendV2(string_builder *sb, v2 value)
 {
   StringBuilderAppendF32(sb, value.x, 2);
-  StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(", "));
+  StringBuilderAppendStringLiteral(sb, ", ");
   StringBuilderAppendF32(sb, value.y, 2);
 }
 
@@ -97,20 +98,7 @@ main(void)
       .total = ARRAY_COUNT(stackBuffer),
   };
 
-  string_builder *sb = MemoryArenaPushUnaligned(&stackMemory, sizeof(*sb));
-  {
-    string *outBuffer = MemoryArenaPushUnaligned(&stackMemory, sizeof(*outBuffer));
-    outBuffer->length = 1024;
-    outBuffer->value = MemoryArenaPushUnaligned(&stackMemory, outBuffer->length);
-    sb->outBuffer = outBuffer;
-
-    string *stringBuffer = MemoryArenaPushUnaligned(&stackMemory, sizeof(*stringBuffer));
-    stringBuffer->length = 32;
-    stringBuffer->value = MemoryArenaPushUnaligned(&stackMemory, stringBuffer->length);
-    sb->stringBuffer = stringBuffer;
-
-    sb->length = 0;
-  }
+  string_builder *sb = MakeStringBuilder(&stackMemory, 1024, 32);
 
   // v2 FindFurthestPoint(struct entity *entity, v2 direction)
   { // Volume: Box
@@ -138,28 +126,46 @@ main(void)
       v2 expected;
       enum physics_test_error error;
     } testCases[] = {
-        {.direction = V2(1.0f, 1.0f),
-         .expected = topRight,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_RIGHT},
-        {.direction = V2(-1.0f, 1.0f), .expected = topLeft, .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_LEFT},
-        {.direction = V2(-1.0f, -1.0f),
-         .expected = bottomLeft,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_LEFT},
-        {.direction = V2(1.0f, -1.0f),
-         .expected = bottomRight,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_RIGHT},
-        {.direction = V2(1.0f, 0.0f),
-         .expected = centerRight,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_RIGHT},
-        {.direction = V2(-1.0f, 0.0f),
-         .expected = centerLeft,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_LEFT},
-        {.direction = V2(0.0f, 1.0f),
-         .expected = centerUp,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_UP},
-        {.direction = V2(0.0f, -1.0f),
-         .expected = centerDown,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_DOWN},
+        {
+            .direction = V2(1.0f, 1.0f),
+            .expected = topRight,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_RIGHT,
+        },
+        {
+            .direction = V2(-1.0f, 1.0f),
+            .expected = topLeft,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_TOP_LEFT,
+        },
+        {
+            .direction = V2(-1.0f, -1.0f),
+            .expected = bottomLeft,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_LEFT,
+        },
+        {
+            .direction = V2(1.0f, -1.0f),
+            .expected = bottomRight,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_BOTTOM_RIGHT,
+        },
+        {
+            .direction = V2(1.0f, 0.0f),
+            .expected = centerRight,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_RIGHT,
+        },
+        {
+            .direction = V2(-1.0f, 0.0f),
+            .expected = centerLeft,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_LEFT,
+        },
+        {
+            .direction = V2(0.0f, 1.0f),
+            .expected = centerUp,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_UP,
+        },
+        {
+            .direction = V2(0.0f, -1.0f),
+            .expected = centerDown,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_BOX_CENTER_DOWN,
+        },
     };
 
     v2 result;
@@ -170,18 +176,18 @@ main(void)
       v2 direction = testCase->direction;
       result = FindFurthestPoint(&entity, direction);
       if (result.x != expected.x || result.y != expected.y) {
-        StringBuilderAppendString(sb, GetPhysicsTestErrorMessage(testCase->error));
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  entity position: "));
+        StringBuilderAppendTestError(sb, testCase->error);
+        StringBuilderAppendStringLiteral(sb, "\n  entity position: ");
         StringBuilderAppendV2(sb, position);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" size: "));
+        StringBuilderAppendStringLiteral(sb, " size: ");
         StringBuilderAppendV2(sb, size);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  direction: "));
+        StringBuilderAppendStringLiteral(sb, "\n  direction: ");
         StringBuilderAppendV2(sb, direction);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n   expected: "));
+        StringBuilderAppendStringLiteral(sb, "\n   expected: ");
         StringBuilderAppendV2(sb, expected);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n        got: "));
+        StringBuilderAppendStringLiteral(sb, "\n        got: ");
         StringBuilderAppendV2(sb, result);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
+        StringBuilderAppendStringLiteral(sb, "\n");
         string errorMessage = StringBuilderFlush(sb);
         LogMessage(&errorMessage);
 
@@ -218,30 +224,46 @@ main(void)
       v2 expected;
       enum physics_test_error error;
     } testCases[] = {
-        {.direction = v2_normalize(V2(1.0f, 1.0f)),
-         .expected = topRight,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_RIGHT},
-        {.direction = v2_normalize(V2(-1.0f, 1.0f)),
-         .expected = topLeft,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_LEFT},
-        {.direction = v2_normalize(V2(-1.0f, -1.0f)),
-         .expected = bottomLeft,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_LEFT},
-        {.direction = v2_normalize(V2(1.0f, -1.0f)),
-         .expected = bottomRight,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_RIGHT},
-        {.direction = V2(1.0f, 0.0f),
-         .expected = centerRight,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_RIGHT},
-        {.direction = V2(-1.0f, 0.0f),
-         .expected = centerLeft,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_LEFT},
-        {.direction = V2(0.0f, 1.0f),
-         .expected = centerUp,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_UP},
-        {.direction = V2(0.0f, -1.0f),
-         .expected = centerDown,
-         .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_DOWN},
+        {
+            .direction = v2_normalize(V2(1.0f, 1.0f)),
+            .expected = topRight,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_RIGHT,
+        },
+        {
+            .direction = v2_normalize(V2(-1.0f, 1.0f)),
+            .expected = topLeft,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_TOP_LEFT,
+        },
+        {
+            .direction = v2_normalize(V2(-1.0f, -1.0f)),
+            .expected = bottomLeft,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_LEFT,
+        },
+        {
+            .direction = v2_normalize(V2(1.0f, -1.0f)),
+            .expected = bottomRight,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_BOTTOM_RIGHT,
+        },
+        {
+            .direction = V2(1.0f, 0.0f),
+            .expected = centerRight,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_RIGHT,
+        },
+        {
+            .direction = V2(-1.0f, 0.0f),
+            .expected = centerLeft,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_LEFT,
+        },
+        {
+            .direction = V2(0.0f, 1.0f),
+            .expected = centerUp,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_UP,
+        },
+        {
+            .direction = V2(0.0f, -1.0f),
+            .expected = centerDown,
+            .error = PHYSICS_TEST_ERROR_FINDFURTHESTPOINT_CIRCLE_CENTER_DOWN,
+        },
     };
 
     v2 result;
@@ -252,20 +274,20 @@ main(void)
       v2 direction = testCase->direction;
       result = FindFurthestPoint(&entity, direction);
       if (result.x != expected.x || result.y != expected.y) {
-        StringBuilderAppendString(sb, GetPhysicsTestErrorMessage(testCase->error));
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  entity position: "));
+        StringBuilderAppendTestError(sb, testCase->error);
+        StringBuilderAppendStringLiteral(sb, "\n  entity position: ");
         StringBuilderAppendV2(sb, position);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED(" radius: "));
+        StringBuilderAppendStringLiteral(sb, " radius: ");
         StringBuilderAppendF32(sb, radius, 2);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n  direction: "));
+        StringBuilderAppendStringLiteral(sb, "\n  direction: ");
         StringBuilderAppendV2(sb, direction);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n   expected: "));
+        StringBuilderAppendStringLiteral(sb, "\n   expected: ");
         StringBuilderAppendV2(sb, expected);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n        got: "));
+        StringBuilderAppendStringLiteral(sb, "\n        got: ");
         StringBuilderAppendV2(sb, result);
-        StringBuilderAppendString(sb, &STRING_FROM_ZERO_TERMINATED("\n"));
-        string errorMessage = StringBuilderFlush(sb);
-        LogMessage(&errorMessage);
+        StringBuilderAppendStringLiteral(sb, "\n");
+        string message = StringBuilderFlush(sb);
+        LogMessage(&message);
 
         errorCode = testCase->error;
       }
